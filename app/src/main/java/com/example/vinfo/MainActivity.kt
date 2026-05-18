@@ -29,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,7 @@ import com.example.vinfo.ui.archive.ArchiveViewModel
 import com.example.vinfo.ui.detail.DetailScreen
 import com.example.vinfo.ui.navigation.Route
 import com.example.vinfo.ui.nowplaying.NowPlayingScreen
+import com.example.vinfo.ui.nowplaying.NowPlayingViewModel
 import com.example.vinfo.ui.settings.SettingsScreen
 import com.example.vinfo.ui.stats.GenreStatsScreen
 import com.example.vinfo.ui.theme.VinfoPrimary
@@ -91,10 +93,18 @@ fun MainScreen() {
 
     // Activity 레벨에서 공유 ViewModel 생성 — 보관함과 통계가 동일 인스턴스 사용
     val archiveViewModel: ArchiveViewModel = viewModel()
+    val nowPlayingViewModel: NowPlayingViewModel = viewModel()
+    val nowPlayingState by nowPlayingViewModel.uiState.collectAsState()
     
     // 최초 실행 시 더미 데이터 삽입
     androidx.compose.runtime.LaunchedEffect(Unit) {
         archiveViewModel.initDummyData()
+    }
+
+    androidx.compose.runtime.LaunchedEffect(nowPlayingViewModel) {
+        nowPlayingViewModel.navigationEvents.collect { trackId ->
+            navController.navigate(Route.Detail.createRoute(trackId))
+        }
     }
 
     // 보관함 선택 모드 상태 (하단바 투명 처리용)
@@ -115,9 +125,7 @@ fun MainScreen() {
             composable(Route.NowPlaying.path) {
                 NowPlayingScreen(
                     onBackClick = { navController.popBackStack() },
-                    onCatchNowClick = {
-                        navController.navigate(Route.Detail.createRoute("runaway_kanye_west"))
-                    },
+                    onCatchNowClick = { nowPlayingViewModel.catchNow() },
                     onSettingsClick = {
                         navController.navigate(Route.Settings.path)
                     },
@@ -129,7 +137,10 @@ fun MainScreen() {
                             launchSingleTop = true
                             restoreState = true
                         }
-                    }
+                    },
+                    isLoading = nowPlayingState.isLoading,
+                    statusMessage = nowPlayingState.statusMessage,
+                    currentTrack = nowPlayingState.currentTrack
                 )
             }
             composable(Route.Detail.path) { backStackEntry ->

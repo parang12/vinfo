@@ -186,3 +186,16 @@ ArchiveRepository.save() → Room DB 저장
 
 Personal / Non-commercial use only.  
 상용화 전환 시 외부 API 이용 약관을 별도로 검토할 것.
+
+## 🧪 Harness (AI 도구 통합)
+
+- 로컬 체크: `flake8 .` 및 `mypy .` 실행으로 스타일과 타입 검사를 수행합니다.
+- 도구 설치:
+
+```bash
+pip install -r requirements.txt
+```
+
+- PR 규칙: `flake8`/`mypy` 실패 시 병합 금지, AI가 생성한 변경은 PR에 `AI-ASSISTED` 표기
+
+자세한 가이드는 [docs/harness/AI_Workflow.md](docs/harness/AI_Workflow.md) 참조.

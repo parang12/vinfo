@@ -40,11 +40,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.statusBarsPadding
+import com.example.vinfo.data.settings.ApiKeyStore
 import com.example.vinfo.ui.component.FloatingBackButton
 import com.example.vinfo.ui.theme.VinfoTheme
 
@@ -53,8 +55,10 @@ import com.example.vinfo.ui.theme.VinfoTheme
 fun SettingsScreen(
     onBackClick: () -> Unit
 ) {
-    var perplexityKey by remember { mutableStateOf("") }
-    var geminiKey by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    val apiKeyStore = remember(context) { ApiKeyStore(context.applicationContext) }
+    var perplexityKey by remember { mutableStateOf(apiKeyStore.getPerplexityApiKey()) }
+    var geminiKey by remember { mutableStateOf(apiKeyStore.getGeminiApiKey()) }
     var selectedTheme by remember { mutableIntStateOf(0) }
     var permissionEnabled by remember { mutableStateOf(true) }
 
@@ -156,7 +160,10 @@ fun SettingsScreen(
                         horizontalArrangement = Arrangement.End
                     ) {
                         Button(
-                            onClick = { },
+                            onClick = {
+                                apiKeyStore.savePerplexityApiKey(perplexityKey)
+                                apiKeyStore.saveGeminiApiKey(geminiKey)
+                            },
                             modifier = Modifier.height(46.dp),
                             shape = RoundedCornerShape(14.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0058BC))

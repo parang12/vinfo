@@ -22,6 +22,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vinfo.ui.archive.DummyArchive
+import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.ui.component.FloatingSettingsButton
 import com.example.vinfo.ui.component.SectionHeader
 import com.example.vinfo.ui.component.SkeletonBox
@@ -34,7 +35,9 @@ fun NowPlayingScreen(
     onCatchNowClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onViewAllArchiveClick: () -> Unit = {},
-    isLoading: Boolean = false // 로딩 상태 추가
+    isLoading: Boolean = false,
+    statusMessage: String? = null,
+    currentTrack: NowPlayingTrack? = null
 ) {
     // 보관함에서 가져온 최근 2개 항목 (DummyArchive 재사용)
     val recentArchiveItems = listOf(
@@ -47,6 +50,10 @@ fun NowPlayingScreen(
             .fillMaxSize()
             .background(Color(0xFFF9F9FF))
     ) {
+        val trackTitle = currentTrack?.title ?: "현재 재생 중인 곡을 감지하는 중"
+        val trackArtist = currentTrack?.artist ?: "알림 접근 권한을 확인해 주세요"
+        val trackAlbum = currentTrack?.album
+
         // 상단 1/3 영역 — Vinfo 제목 가운데 배치
         Box(
             modifier = Modifier
@@ -175,17 +182,25 @@ fun NowPlayingScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "Echoes of Tomorrow",
+                                    text = trackTitle,
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF181C23)
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "Neon Synthesizers",
+                                    text = trackArtist,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color(0xFF6B7280)
                                 )
+                                if (!trackAlbum.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = trackAlbum,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color(0xFF9CA3AF)
+                                    )
+                                }
                                 Spacer(modifier = Modifier.height(14.dp))
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -227,6 +242,17 @@ fun NowPlayingScreen(
                         text = "Catch Now",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (!statusMessage.isNullOrBlank()) {
+                item {
+                    Text(
+                        text = statusMessage,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6B7280),
+                        modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
             }
@@ -375,7 +401,9 @@ fun NowPlayingScreenPreview() {
         NowPlayingScreen(
             onBackClick = {},
             onCatchNowClick = {},
-            onSettingsClick = {}
+            onSettingsClick = {},
+            statusMessage = "현재 재생 곡을 감지하면 여기에 표시됩니다.",
+            currentTrack = null
         )
     }
 }

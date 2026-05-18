@@ -3,12 +3,12 @@
 이 문서는 Vinfo 프로젝트의 현재 구현 상태와 앞으로 진행해야 할 핵심 과제들을 정리한 문서입니다.
 
 ## 1. 외부 API 연동 및 데이터 처리 (High Priority)
-- [ ] **Perplexity API 연동**: 실시간 아티스트/앨범 정보 검색 및 비평가 요약 데이터 확보
+- [x] **Perplexity API 연동**: 실시간 아티스트/앨범 정보 검색 및 비평가 요약 데이터 확보
 - [ ] **Gemini API 연동**: 가사 번역 및 AI 기반 음악 분석 데이터 생성
 - [ ] **LLM Parser 구현**: AI 응답(JSON)의 안정적인 파싱 및 데이터 모델 변환 로직
 
 ## 2. 미디어 감지 서비스 (Medium Priority)
-- [ ] **ActiveMediaMonitorService 구현**: 타 앱(Spotify, YouTube Music 등) 재생 정보 실시간 감지
+- [x] **ActiveMediaMonitorService 구현**: 타 앱(Spotify, YouTube Music 등) 재생 정보 실시간 감지
 - [ ] **권한 관리**: Notification Listener 권한 요청 및 상태 체크 로직 구현
 
 ## 3. UI/UX 고도화 (Low Priority)
