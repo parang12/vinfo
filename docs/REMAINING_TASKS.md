@@ -15,6 +15,16 @@
 - [x] **로딩 상태 UI(Skeleton/Shimmer) 적용**: 데이터 로딩 중 사용자 경험 개선
 - [ ] **애니메이션 효과**: 화면 전환 및 리스트 인터랙션 애니메이션 추가
 
+### 3.1 Taste Exploration / Genre Map
+- [ ] `GenreMapScreen` 구현 (Compose): 노드/엣지 렌더링, 툴팁, 접근성
+- [ ] `GenreExplorationRepository` 인터페이스 및 Room DAO 구현
+- [ ] `ComputeGenreAdjacencyUseCase` 구현 및 단위 테스트
+- [ ] UI 통합 테스트: 노드 활성화/잠금 해제 플로우
+
 ## 4. 아키텍처 및 품질 개선
 - [ ] **Clean Architecture 적용**: Domain(UseCase) 및 Data(Repository) 계층 분리
 - [ ] **Unit Test 작성**: 주요 비즈니스 로직(통계 계산, 파서 등) 검증
+
+---
+
+추가 요청 시 우선순위를 재조정하고 작업 항목을 세분화합니다.

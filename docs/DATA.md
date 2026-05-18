@@ -113,6 +113,72 @@ interface ArchiveDao {
 - 매핑 실패 시 `UNKNOWN`으로 저장하고 `genreSource = LLM`을 유지한다.
 - 통계 집계는 정규화된 `primaryGenre`만 사용한다.
 
+### 2.5 Taste Exploration 데이터 모델
+
+`taste_exploration`은 Perplexity의 `taste_exploration` 응답과 내부 탐험 맵을 연결하기 위한 저장 스키마를 정의한다. 이 데이터는 별도의 테이블로 관리하여 탐험 로직의 증분 업데이트와 Explainability를 지원한다.
+
+```kotlin
+@Entity(tableName = "genre_node")
+data class GenreNodeEntity(
+  @PrimaryKey val genreKey: String, // normalized key (GenreCategory.name)
+  @ColumnInfo(name = "display_name") val displayName: String,
+  @ColumnInfo(name = "activated") val activated: Boolean = false,
+  @ColumnInfo(name = "last_activated_at") val lastActivatedAt: Long? = null,
+  @ColumnInfo(name = "save_count") val saveCount: Int = 0
+)
+
+@Entity(
+  tableName = "genre_adjacency",
+  primaryKeys = ["from_genre", "to_genre"]
+)
+data class AdjacencyEntity(
+  @ColumnInfo(name = "from_genre") val fromGenre: String,
+  @ColumnInfo(name = "to_genre") val toGenre: String,
+  @ColumnInfo(name = "weight") val weight: Double,
+  @ColumnInfo(name = "unlocked") val unlocked: Boolean = false,
+  @ColumnInfo(name = "evidence_json") val evidenceJson: String? = null // 근거 메타(저장횟수, LLM 유사도 등)
+)
+
+@Entity(tableName = "exploration_state")
+data class ExplorationStateEntity(
+  @PrimaryKey val id: Int = 0, // 싱글톤 per-user 앱 설계 시 단일 row
+  @ColumnInfo(name = "diversity_weight") val diversityWeight: Double = 0.5,
+  @ColumnInfo(name = "last_updated") val lastUpdated: Long
+)
+```
+
+DAO 예시:
+
+```kotlin
+@Dao
+interface GenreExplorationDao {
+  @Query("SELECT * FROM genre_node ORDER BY save_count DESC")
+  fun getAllNodes(): Flow<List<GenreNodeEntity>>
+
+  @Query("SELECT * FROM genre_adjacency WHERE from_genre = :genreKey ORDER BY weight DESC")
+  suspend fun getAdjacencies(genreKey: String): List<AdjacencyEntity>
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun upsertNode(node: GenreNodeEntity)
+
+  @Insert(onConflict = OnConflictStrategy.REPLACE)
+  suspend fun upsertAdjacency(adj: AdjacencyEntity)
+
+  @Query("DELETE FROM genre_adjacency WHERE from_genre = :genreKey")
+  suspend fun deleteAdjacenciesFor(genreKey: String)
+}
+```
+
+매핑 규칙:
+- Perplexity 응답의 `taste_exploration.center_genre`는 `GenreMapper`를 통해 `genreKey`로 정규화한 뒤 `GenreNodeEntity.activated = true`로 표시할 수 있다.
+- `taste_exploration.adjacent_genres`는 우선 후보 목록으로 저장하되, 실제 `AdjacencyEntity.weight`는 내부 계산(기본 유사도 맵 + 저장 횟수/최근성/다양성 보정)을 통해 결정한다.
+- `AdjacencyEntity.evidenceJson`에는 가중치 계산 근거(예: `{ "saveCount": 5, "llmScore": 0.72 }`)를 보관하여 툴팁에 노출할 수 있다.
+
+Validation/Parsing:
+- Perplexity에서 받은 `taste_exploration` 필드는 DTO로 받아 내부 정규화/검증을 거친 후 `GenreExplorationRepository`를 통해 DB에 반영한다.
+- 잘못되거나 비정상적인 장르 문자열은 `GenreMapper`의 매핑 실패 규칙에 따라 `UNKNOWN` 혹은 무시 처리된다.
+
+
 ---
 
 ## 3. Perplexity API Contract
