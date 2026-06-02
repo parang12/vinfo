@@ -24,7 +24,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +38,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
+import com.example.vinfo.ui.permission.NotificationPermissionBanner
+import com.example.vinfo.ui.permission.openNotificationListenerSettings
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -43,10 +49,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vinfo.ui.archive.ArchiveListScreen
 import com.example.vinfo.ui.archive.ArchiveViewModel
@@ -55,10 +63,16 @@ import com.example.vinfo.ui.navigation.Route
 import com.example.vinfo.ui.nowplaying.NowPlayingScreen
 import com.example.vinfo.ui.nowplaying.NowPlayingViewModel
 import com.example.vinfo.ui.settings.SettingsScreen
-import com.example.vinfo.ui.stats.GenreStatsScreen
+import com.example.vinfo.ui.permission.isNotificationListenerEnabled
+import com.example.vinfo.ui.permission.openNotificationListenerSettings
+import com.example.vinfo.ui.permission.openAppNotificationSettings
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import com.example.vinfo.ui.stats.GenreMapScreen
 import com.example.vinfo.ui.theme.VinfoPrimary
 import com.example.vinfo.ui.theme.VinfoSurface
 import com.example.vinfo.ui.theme.VinfoTheme
+import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,7 +89,7 @@ class MainActivity : ComponentActivity() {
 sealed class BottomNavItem(val route: String, val label: String, val icon: ImageVector) {
     object NowPlaying : BottomNavItem(Route.NowPlaying.path, "홈", Icons.Default.Home)
     object Archive : BottomNavItem(Route.Archive.path, "보관함", Icons.Default.LibraryMusic)
-    object Stats : BottomNavItem(Route.GenreStats.path, "통계", Icons.Default.BarChart)
+    object Stats : BottomNavItem(Route.GenreStats.path, "인사이트", Icons.Default.Map)
 }
 
 @Composable
@@ -84,6 +98,7 @@ fun MainScreen() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val bottomNavItems = listOf(
         BottomNavItem.NowPlaying,
@@ -103,7 +118,18 @@ fun MainScreen() {
 
     androidx.compose.runtime.LaunchedEffect(nowPlayingViewModel) {
         nowPlayingViewModel.navigationEvents.collect { trackId ->
-            navController.navigate(Route.Detail.createRoute(trackId))
+            navController.navigate(
+                Route.Detail.createRoute(
+                    trackId = trackId,
+                    albumArtUrl = nowPlayingViewModel.uiState.value.currentTrack?.albumArtUrl
+                )
+            )
+        }
+    }
+
+    androidx.compose.runtime.LaunchedEffect(archiveViewModel) {
+        archiveViewModel.saveEvents.collectLatest { message ->
+            snackbarHostState.showSnackbar(message)
         }
     }
 
@@ -116,6 +142,18 @@ fun MainScreen() {
             .fillMaxSize()
             .background(VinfoSurface)
     ) {
+        // 알림 리스너 권한 배너 (상단 오버레이)
+        val ctx = LocalContext.current
+        NotificationPermissionBanner(
+            modifier = Modifier.align(Alignment.TopCenter),
+            onOpenSettings = {
+                openNotificationListenerSettings(ctx)
+            }
+        )
+
+        // Catch Now 클릭 시 권한이 없으면 하단 안내 시트 표시
+        var showPermissionSheet by remember { mutableStateOf(false) }
+
         // 콘텐츠 (전체 화면 사용)
         NavHost(
             navController = navController,
@@ -125,7 +163,14 @@ fun MainScreen() {
             composable(Route.NowPlaying.path) {
                 NowPlayingScreen(
                     onBackClick = { navController.popBackStack() },
-                    onCatchNowClick = { nowPlayingViewModel.catchNow() },
+                    onCatchNowClick = {
+                        // 권한 확인 후 동작
+                        if (!isNotificationListenerEnabled(ctx)) {
+                            showPermissionSheet = true
+                        } else {
+                            nowPlayingViewModel.catchNow()
+                        }
+                    },
                     onSettingsClick = {
                         navController.navigate(Route.Settings.path)
                     },
@@ -138,17 +183,49 @@ fun MainScreen() {
                             restoreState = true
                         }
                     },
+                    onOpenMapClick = {
+                        navController.navigate(Route.GenreStats.path) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     isLoading = nowPlayingState.isLoading,
                     statusMessage = nowPlayingState.statusMessage,
                     currentTrack = nowPlayingState.currentTrack
                 )
             }
-            composable(Route.Detail.path) { backStackEntry ->
+            composable(
+                route = Route.Detail.path,
+                arguments = listOf(
+                    navArgument("albumArtUrl") {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    }
+                )
+            ) { backStackEntry ->
                 val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
+                val albumArtUrl = backStackEntry.arguments?.getString("albumArtUrl")
                 DetailScreen(
                     trackId = trackId,
+                    albumArtUrl = albumArtUrl,
+                    currentTrack = nowPlayingState.currentTrack,
+                    trackMetadata = nowPlayingState.trackMetadata,
+                    originalLyrics = nowPlayingState.originalLyrics,
+                    isLyricsLoading = nowPlayingState.isLyricsLoading,
+                    lyricsErrorMessage = nowPlayingState.lyricsErrorMessage,
                     onBackClick = { navController.popBackStack() },
-                    onSettingsClick = { navController.navigate(Route.Settings.path) }
+                    onSettingsClick = { navController.navigate(Route.Settings.path) },
+                    onAddToArchiveClick = {
+                        archiveViewModel.saveCurrentTrack(
+                            trackId = trackId,
+                            currentTrack = nowPlayingState.currentTrack,
+                            trackMetadata = nowPlayingState.trackMetadata
+                        )
+                    }
                 )
             }
             composable(Route.Archive.path) {
@@ -165,10 +242,11 @@ fun MainScreen() {
                 )
             }
             composable(Route.GenreStats.path) {
-                GenreStatsScreen(
+                val archiveList by archiveViewModel.archiveList.collectAsState()
+                GenreMapScreen(
+                    archiveItems = archiveList,
                     onBackClick = { navController.popBackStack() },
                     onSettingsClick = { navController.navigate(Route.Settings.path) },
-                    archiveViewModel = archiveViewModel
                 )
             }
             composable(Route.Settings.path) {
@@ -182,7 +260,6 @@ fun MainScreen() {
         val showBottomBar = currentRoute in setOf(
             Route.NowPlaying.path,
             Route.Archive.path,
-            Route.GenreStats.path,
             Route.Detail.path
         )
 
@@ -208,6 +285,45 @@ fun MainScreen() {
                 },
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
+        }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 112.dp)
+        )
+
+        // 간단한 하단 권한 안내 시트
+        if (showPermissionSheet) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                shadowElevation = 12.dp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(text = "알림 접근 권한이 필요합니다.", style = MaterialTheme.typography.titleMedium)
+                    Text(text = "다른 앱의 재생 상태를 감지하려면 알림 접근 권한을 허용해주세요.", modifier = Modifier.padding(top = 6.dp, bottom = 12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = {
+                            openNotificationListenerSettings(ctx)
+                            showPermissionSheet = false
+                        }) {
+                            Text(text = "권한 설정 열기")
+                        }
+                        TextButton(onClick = {
+                            openAppNotificationSettings(ctx)
+                            showPermissionSheet = false
+                        }) {
+                            Text(text = "앱 설정")
+                        }
+                        TextButton(onClick = { showPermissionSheet = false }) {
+                            Text(text = "취소")
+                        }
+                    }
+                }
+            }
         }
     }
 }

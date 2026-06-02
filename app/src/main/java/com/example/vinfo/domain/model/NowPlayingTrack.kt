@@ -4,5 +4,6 @@ data class NowPlayingTrack(
     val artist: String,
     val title: String,
     val album: String? = null,
-    val sourcePackageName: String? = null
+    val sourcePackageName: String? = null,
+    val albumArtUrl: String? = null
 )

@@ -10,9 +10,17 @@ object GenreMapper {
 
         return when {
             normalized.isBlank() -> GenreCategory.UNKNOWN
-            normalized.contains("hip hop") || normalized.contains("hip-hop") || normalized == "rap" -> GenreCategory.HIP_HOP
-            normalized.contains("r&b") || normalized.contains("rnb") || normalized.contains("neo soul") -> GenreCategory.RNB
-            normalized.contains("pop") || normalized.contains("synth") || normalized.contains("electro pop") -> GenreCategory.POP
+            normalized.contains("hip hop") ||
+                normalized.contains("hip-hop") ||
+                normalized.contains("rap") ||
+                normalized.contains("trap") -> GenreCategory.HIP_HOP
+            normalized.contains("r&b") ||
+                normalized.contains("rnb") ||
+                normalized.contains("neo soul") ||
+                normalized.contains("soul") -> GenreCategory.RNB
+            normalized.contains("pop") ||
+                normalized.contains("synth") ||
+                normalized.contains("electro pop") -> GenreCategory.POP
             normalized.contains("rock") || normalized.contains("punk") || normalized.contains("indie") -> GenreCategory.ROCK
             normalized.contains("electronic") || normalized.contains("house") || normalized.contains("techno") || normalized.contains("ambient") -> GenreCategory.ELECTRONIC
             normalized.contains("jazz") -> GenreCategory.JAZZ

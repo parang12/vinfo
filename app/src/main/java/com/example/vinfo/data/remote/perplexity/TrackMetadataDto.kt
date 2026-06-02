@@ -8,8 +8,13 @@ data class TrackMetadataDto(
     val secondaryGenre: String?,
     val genreSource: String?,
     val rymRating: Float?,
+    val pitchforkScore: Float?,
+    val metacriticScore: Int?,
+    val aotyScore: Int?,
     val criticsSummary: String,
     val interviewSummary: String?,
     val listeningGuide: String,
-    val samplesUsed: List<String>
+    val samplesUsed: List<String>,
+    val missingSources: List<String>,
+    val reliabilityNotes: List<String>
 )

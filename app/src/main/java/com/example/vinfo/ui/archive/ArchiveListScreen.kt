@@ -200,8 +200,6 @@ fun ArchiveListScreen(
                             } else {
                                 selectedIds + track.id
                             }
-                        } else {
-                            onTrackClick(track.id)
                         }
                     },
                     onLongClick = {
@@ -212,7 +210,7 @@ fun ArchiveListScreen(
                         }
                     }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
             }
         }
 
@@ -335,17 +333,17 @@ fun ArchiveItem(
                 onLongClick = onLongClick
             )
             .then(
-                if (isSelected) Modifier.border(2.dp, VinfoPrimary, RoundedCornerShape(20.dp))
+                if (isSelected) Modifier.border(2.dp, VinfoPrimary, RoundedCornerShape(16.dp))
                 else Modifier
             ),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (isSelected) Color(0xFFEEF4FF) else Color.White,
-        shadowElevation = if (isSelected) 0.dp else 2.dp
+        shadowElevation = if (isSelected) 0.dp else 1.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // 선택 체크박스
@@ -366,27 +364,27 @@ fun ArchiveItem(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(12.dp))
             }
 
             // 텍스트 정보
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = track.title,
-                    style = MaterialTheme.typography.titleLarge,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF181C23)
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = track.artist,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.labelMedium,
                     color = Color(0xFF6B7280)
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = track.date,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     color = Color(0xFF9CA3AF)
                 )
             }
@@ -394,9 +392,9 @@ fun ArchiveItem(
             // 장르 칩 (우측)
             Column(
                 horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp)
             ) {
-                track.genres.take(2).forEach { genreLabel ->
+                track.genres.take(1).forEach { genreLabel ->
                     GenreChip(genre = genreLabel)
                 }
             }

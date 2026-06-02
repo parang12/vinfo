@@ -6,14 +6,14 @@
 
 ## 📌 프로젝트 개요
 
-vinfo는 Android 알림 리스너를 통해 현재 재생 중인 음악을 감지하고,  
-Perplexity API, Gemini API, lyrics.ovh를 활용해 아래 정보를 자동으로 수집·저장한다.
+vinfo는 Android 알림 리스너를 통해 현재 재생 중인 음악의 아티스트명과 곡명을 감지하고,
+Gemini API와 lyrics.ovh를 활용해 해당 곡이 수록된 앨범을 식별한 뒤 아래 정보를 자동으로 수집·저장한다.
 
-- 앨범 평론 및 RYM 평점
-- 장르 분류
+- 앨범 기준 평론 및 RYM/Pitchfork/Metacritic/AOTY 평점
+- 앨범 기준 Primary/Secondary 장르 분류
 - 감상 포인트 (Listening Guide)
 - 샘플링 출처
-- 원문 가사 + 한국어 번역
+- `lyrics.ovh` 원문 가사 조회
 
 수집된 데이터는 로컬 Room DB에 저장되며, 장르별 청취 통계 시각화 기능을 제공한다.
 
@@ -32,7 +32,7 @@ Perplexity API, Gemini API, lyrics.ovh를 활용해 아래 정보를 자동으�
 | Local DB | Room |
 | Navigation | Navigation Compose |
 | Media 감지 | NotificationListenerService |
-| 외부 API | Perplexity API, Gemini API, lyrics.ovh |
+| 외부 API | Gemini API, lyrics.ovh |
 | 시각화 | Vico |
 
 ---
@@ -66,7 +66,7 @@ vinfo/
 │   └── usecase/          # GetTrackInformationUseCase, SaveArchiveUseCase 등
 ├── data/
 │   ├── local/            # Room DB, ArchiveDao, ArchiveEntity
-│   ├── remote/           # Perplexity / Gemini / Lyrics API Service + DTO
+│   ├── remote/           # Gemini / Lyrics API Service + DTO
 │   ├── interceptor/      # JsonSanitizerInterceptor
 │   ├── mapper/           # DTO ↔ Domain Model 변환
 │   └── repository/       # Repository 구현체
@@ -93,7 +93,6 @@ vinfo/
 `local.properties`에 아래 키를 추가한다. **절대 Git에 커밋하지 않는다.**
 
 ```properties
-PERPLEXITY_API_KEY=your_perplexity_key_here
 GEMINI_API_KEY=your_gemini_key_here
 ```
 
@@ -135,13 +134,11 @@ MediaMonitor 곡 감지
         ↓
 DetailViewModel → UI: Loading (Shimmer)
         ↓
-[Job A] PerplexityAPI.getMetadata()  ──┐
-[Job B] LyricsAPI.getRawLyrics()     ──┤ 병렬 실행 (async)
+[Job A] GeminiAPI.identifyAlbumAndMetadata() ──┐
+[Job B] LyricsAPI.getRawLyrics()               ──┤ 병렬 실행 (async)
         ↓ Job A 완료                   │
-MetadataUiState.Success 즉시 렌더링    │
+Album MetadataUiState.Success 즉시 렌더링 │
         ↓ Job B 완료                   │
-[Job C] GeminiAPI.translate()          │
-        ↓                              │
 LyricsUiState.Success 렌더링      ◄───┘
         ↓
 ArchiveRepository.save() → Room DB 저장
@@ -153,24 +150,28 @@ ArchiveRepository.save() → Room DB 저장
 
 | 결정 | 이유 |
 |---|---|
-| JSON Sanitizer Interceptor | LLM 응답 비정형 대응, 파싱 안정성 확보 |
+| 앨범 기준 메타데이터 계약 | 곡명/아티스트는 앨범 식별 입력으로만 사용하고 장르/평점/평론은 앨범 기준으로 통일 |
+| Gemini JSON 계약 | `responseMimeType = "application/json"` 요청, 앨범 기준 평점 키, `missing_sources`/`reliability_notes` 포함 |
+| JSON Parser 방어 로직 | Gemini 래퍼/원시 JSON 대응, nullable 평점 보존, 파싱 안정성 확보 |
 | UI State 분리 (`MetadataState` / `LyricsState`) | Compose 불필요한 Recomposition 방지 |
 | `AppResult<T>` 공통 래퍼 | 계층 간 에러 전파 표준화, 부분 실패 허용 |
-| 가사/번역 nullable 필드 | lyrics.ovh 미수록 곡 대응 |
+| 원문 가사 nullable 필드 | lyrics.ovh 미수록 곡 대응 |
 | DB Migration 전략 초기 수립 | 아카이브 데이터 소실 방지 |
 
 ---
 
 ## 📋 TODO (Prototype)
 
-- [ ] `ActiveMediaMonitorService` 구현 및 `SharedFlow` 연결
-- [ ] Perplexity API 연동 + `JsonSanitizerInterceptor` 적용
-- [ ] lyrics.ovh 연동 + `runCatching` Fallback 처리
-- [ ] Gemini 번역 연동
+- [x] `ActiveMediaMonitorService` 구현 및 미디어 알림 감지 연결
+- [x] Gemini 앨범 식별/메타데이터 JSON 계약 정리
+- [x] Gemini 앨범 기준 평점 JSON 파싱 및 상세 화면 표시
+- [x] lyrics.ovh 원문 가사 조회 연동
+- [ ] 필요 시 Gemini 번역 연동
 - [ ] Room DB 스키마 + DAO 구현
-- [ ] `DetailScreen` UI (Shimmer → 데이터 렌더링)
-- [ ] `ArchiveListScreen` 구현
-- [ ] `GenreStatsScreen` + Vico 차트 연동
+- [x] `DetailScreen` UI (앨범 메타데이터 + 원문 가사 렌더링)
+- [x] `ArchiveListScreen` 구현
+- [x] `GenreMapScreen` 전체 화면 pan/zoom 구현
+- [ ] 검수된 `GenreDictionary` 리소스 분리 및 Gemini 장르 후보 배열 연동
 - [ ] Hilt DI 모듈 전체 연결
 - [ ] 알림 권한 온보딩 플로우
 

@@ -69,8 +69,12 @@ dependencies {
     implementation(libs.retrofit)
     implementation(libs.retrofit.scalars)
     implementation(libs.okhttp)
+    // Image loading
+    implementation("io.coil-kt:coil-compose:2.3.0")
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20230227")
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.10.0")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

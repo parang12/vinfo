@@ -5,10 +5,15 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vinfo.data.local.AppDatabase
 import com.example.vinfo.data.local.entity.AlbumEntity
+import com.example.vinfo.domain.model.NowPlayingTrack
+import com.example.vinfo.domain.model.TrackMetadata
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -18,6 +23,8 @@ import kotlinx.coroutines.launch
 class ArchiveViewModel(application: Application) : AndroidViewModel(application) {
 
     private val albumDao = AppDatabase.getDatabase(application).albumDao()
+    private val _saveEvents = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val saveEvents: SharedFlow<String> = _saveEvents.asSharedFlow()
 
     // DB에서 데이터를 실시간으로 관찰하여 UI 모델로 변환
     val archiveList: StateFlow<List<DummyArchive>> = albumDao.getAllAlbums()
@@ -55,6 +62,25 @@ class ArchiveViewModel(application: Application) : AndroidViewModel(application)
     fun addItem(item: DummyArchive) {
         viewModelScope.launch {
             albumDao.insertAlbum(AlbumEntity.fromDomain(item))
+        }
+    }
+
+    fun saveCurrentTrack(
+        trackId: String,
+        currentTrack: NowPlayingTrack?,
+        trackMetadata: TrackMetadata?
+    ) {
+        if (currentTrack == null || trackMetadata == null) return
+
+        viewModelScope.launch {
+            albumDao.insertAlbum(
+                AlbumEntity.fromTrackSnapshot(
+                    trackId = trackId,
+                    track = currentTrack,
+                    metadata = trackMetadata
+                )
+            )
+            _saveEvents.tryEmit("보관함에 저장했습니다.")
         }
     }
 

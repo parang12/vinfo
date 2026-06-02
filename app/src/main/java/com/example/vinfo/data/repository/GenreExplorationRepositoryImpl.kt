@@ -5,12 +5,11 @@ import com.example.vinfo.domain.model.ExplorationState
 import com.example.vinfo.domain.model.GenreNode
 import com.example.vinfo.domain.model.TrackMetadata
 import com.example.vinfo.domain.repository.GenreExplorationRepository
-import javax.inject.Inject
 
 /**
  * 임시 스텁 구현체. 실제 DB/DAO 연동은 이후 구현.
  */
-class GenreExplorationRepositoryImpl @Inject constructor() : GenreExplorationRepository {
+class GenreExplorationRepositoryImpl : GenreExplorationRepository {
     override suspend fun getExplorationState(): ExplorationState {
         return ExplorationState(diversityWeight = 0.5, lastUpdated = System.currentTimeMillis())
     }
@@ -22,6 +21,12 @@ class GenreExplorationRepositoryImpl @Inject constructor() : GenreExplorationRep
 
     override suspend fun activateNode(genreKey: String): GenreNode {
         // TODO: DB에서 노드 조회/갱신 후 반환
-        return GenreNode(genreKey = genreKey, displayName = genreKey, activated = true, lastActivatedAt = System.currentTimeMillis(), saveCount = 1)
+        return GenreNode(
+            genreKey = genreKey,
+            displayName = genreKey,
+            activated = true,
+            lastActivatedAt = System.currentTimeMillis(),
+            saveCount = 1
+        )
     }
 }

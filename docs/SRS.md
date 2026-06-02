@@ -3,9 +3,9 @@
 **Project Name:** vinfo (Vinyl + Information)
 **Target Platform:** Android (API Level 26 or higher)
 **Development Environment:** Android Studio, Jetpack Compose
-**Version:** 1.3
+**Version:** 1.4
 **Author:** Kim Tae-jin (김태진)
-**Date:** 2026-05-14
+**Date:** 2026-06-02
 
 ---
 
@@ -15,11 +15,12 @@
 본 문서는 음악 정보 아카이빙 및 분석 애플리케이션인 'vinfo'의 요구 사양을 상세히 정의한다. 이 문서는 개발의 기준점이 되며, 기술적 구현 가능성과 시스템 아키텍처를 명확히 함을 목적으로 한다.
 
 ### 1.2 Scope
-vinfo는 사용자가 현재 청취 중인 음악을 실시간으로 식별하고, LLM(Perplexity, Gemini)을 활용하여 심층적인 음악적 맥락(평론, 샘플링, 가사 번역 등)을 제공하며, 이를 DB에 기록한다. 또한 장기 청취 기록을 기반으로 장르 간 인접성과 확장 흐름을 시각화하여, 단순 추천이 아닌 "취향 탐험" 경험을 제공하는 모바일 애플리케이션이다.
+vinfo는 사용자가 현재 청취 중인 음악을 실시간으로 식별하고, 감지된 아티스트명과 곡명을 이용해 해당 곡이 수록된 앨범을 먼저 식별한다. 이후 Gemini를 활용하여 앨범 기준의 심층 음악적 맥락(장르 후보, 평론, 앨범 평점, 샘플링 등)을 제공하고 이를 DB에 기록한다. 현재 곡의 원문 가사는 `lyrics.ovh`에서 별도로 조회한다. Perplexity 관련 레거시 구현은 코드베이스에 남아 있으나, 런타임은 `GeminiTrackMetadataRepository`를 사용하도록 전환되어 있다. 또한 장기 청취 기록을 기반으로 장르 간 인접성과 확장 흐름을 시각화하여, 단순 추천이 아닌 "취향 탐험" 경험을 제공하는 모바일 애플리케이션이다.
 
 ### 1.3 Definitions and Abbreviations
 * **LLM:** Large Language Model (대규모 언어 모델)
-* **RYM:** Rate Your Music (음악 평점 및 데이터베이스 사이트)
+* **RYM:** Rate Your Music (음악 평점 및 데이터베이스 사이트; vinfo에서는 곡 단위가 아니라 앨범 단위 평점/장르 근거로만 사용)
+* **Album-based Metadata:** 현재 감지된 곡의 `artist + title`로 수록 앨범을 식별한 뒤, 장르/평론/평점은 해당 앨범 기준으로 수집하는 데이터 계약
 * **SRS:** Software Requirements Specification (소프트웨어 요구 사양서)
 * **MVVM:** Model-View-ViewModel (UI 아키텍처 패턴)
 
@@ -28,12 +29,12 @@ vinfo는 사용자가 현재 청취 중인 음악을 실시간으로 식별하�
 ## 2. Overall Description (전체 설명)
 
 ### 2.1 Product Perspective
-vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와 긴밀하게 연동된다. 외부 API(Perplexity, Gemini, lyrics.ovh)에 의존하며, 데이터 저장소로 로컬 Room DB를 사용한다.
+vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와 긴밀하게 연동된다. 외부 API(Gemini, lyrics.ovh)에 의존하며, Perplexity는 레거시/대체 구현으로 저장소에 일부 코드가 남아있다. 데이터 저장소로 로컬 Room DB를 사용한다.
 
 ### 2.2 System Functions
 1.  **실시간 음악 인식:** 백그라운드 미디어 알림에서 아티스트/곡 제목 파싱.
-2.  **심층 정보 생성:** Perplexity API를 이용한 전문 평론 및 인터뷰 데이터 요약.
-3.  **가사 자동화:** 가사 추출 및 Gemini API 기반 고품질 의역 번역.
+2.  **앨범 식별 및 심층 정보 생성:** 감지된 아티스트/곡 제목으로 수록 앨범을 식별하고, Gemini API를 이용해 앨범 기준의 장르/평론/평점/인터뷰 데이터를 요약한다.
+3.  **가사 자동화:** `lyrics.ovh` 기반 현재 곡 원문 가사 조회. Gemini 번역은 후속 기능으로 분리.
 4.  **아카이빙:** 감상 기록 저장 및 장르/날짜 데이터 관리.
 5.  **취향 탐험 지도:** 장르 인접 그래프(Genre Adjacency Map) 기반 취향 확장 흐름 시각화.
 6.  **통계 시각화:** 아카이브 데이터를 활용한 장르 비율 및 기간별 변화 차트 제공.
@@ -53,31 +54,42 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     * 앱 UI 내 "Catch Now" 버튼 클릭 시 최신 메타데이터를 캐싱.
 * **Logical Constraint:** 권한 획득 실패 시 수동 입력 모드로 전환되어야 함.
 
-### 3.2 [Feature 2] Intelligent Metadata Synthesis (Perplexity API)
-* **Description:** 검색 기반 LLM인 Perplexity를 사용하여 정형화된 음악 정보를 생성한다.
-* **Input Data:** `"${Artist} - ${Title}"`
+### 3.2 [Feature 2] Intelligent Metadata Synthesis (Gemini API)
+* **Description:** 검색 기반 LLM인 Gemini를 사용하여 감지된 곡의 수록 앨범을 식별하고, 앨범 기준의 정형화된 음악 정보를 생성한다.
+* **Input Data:** `"${Artist} - ${Title}"` (`Album` 값이 MediaSession에서 감지되면 보조 힌트로만 전달)
+* **Album-first Rule:** Gemini는 반드시 아티스트명과 곡명으로 해당 곡이 수록된 앨범을 먼저 찾은 뒤, 아래 항목을 모두 그 앨범 기준으로 산출해야 한다. 곡 단위 평점/장르를 임의로 만들지 않는다.
+* **Search Grounding Rule:** Gemini 요청에는 Google Search grounding을 활성화한다. RYM, Pitchfork, Metacritic, AOTY의 직접 페이지를 먼저 찾고, 직접 접근이 막히거나 검색되지 않을 때만 Reddit 또는 HipHople 결과를 우회 탐색과 교차검증에 사용한다. 단일 커뮤니티 게시글만으로 평점을 확정하지 않으며, 여러 독립 결과가 같은 앨범 단위 점수와 원출처를 일관되게 인용하지 않으면 `null`로 처리한다.
 * **Prompt Engineering Structure:**
-    1.  Critics' reviews summary.
-    2.  Genre classification (Primary & Secondary).
-    3.  RYM (Rate Your Music) score estimation/search.
-    4.  Artist/Producer interviews related to the track/album.
-    5.  Sampling information (Original tracks used).
-    6.  Listening Guide (Focus points).
+    1.  Album identification: album title and reliability note when identification is uncertain.
+    2.  Album-level genre classification (Primary & Secondary).
+    3.  Album-level ratings/review scores from RYM, Pitchfork, Metacritic, and AOTY when available.
+    4.  Critics' reviews summary based on the identified album.
+    5.  Artist/Producer interviews related to the identified album.
+    6.  Sampling information for the current track only when reliable, otherwise omit.
+    7.  Listening Guide (Focus points) explaining the current track in the album context.
 * **Output Format:** JSON 형식으로 응답을 강제하여 앱 내 View에서 구조적으로 표시.
+* **Missing Data Rule:** RYM, Pitchfork, Metacritic, AOTY 중 확인 가능한 출처만 표시한다. 확인되지 않는 값은 추정하지 않고 `null` 또는 빈 배열로 반환한다.
+* **Genre Candidate Rule:** Gemini는 앨범의 장르 후보와 신뢰도만 반환한다. 장르 간 영향 관계나 신규 연결선을 생성하지 않는다.
+* **Current JSON Keys:** `artist`, `title`, `album`, `primary_genres`, `secondary_genres`, `microgenres`, `genre_source`, `rym_rating`, `pitchfork_score`, `metacritic_score`, `aoty_score`, `critics_summary`, `interview_summary`, `listening_guide`, `samples_used`, `missing_sources`, `reliability_notes`.
 
 ### 3.3 [Feature 3] Lyrics & AI Translation (lyrics.ovh + Gemini)
-* **Description:** 가사 데이터 획득 후 감성적인 맥락을 유지하며 번역을 수행한다.
+* **Description:** 현재 구현 범위에서는 `lyrics.ovh`로 현재 곡의 원문 가사를 조회한다. Gemini 번역은 후속 기능으로 유지한다.
 * **Process:**
     1.  `lyrics.ovh` API 호출.
-    2.  텍스트를 Gemini 1.5 Flash/Pro 모델에 전송.
-    3.  번역 지침: "직역이 아닌 한국 대중음악 감성에 맞게 문학적으로 의역할 것."
+    2.  원문 가사를 상세 화면에 표시.
+    3.  조회 실패 시 앨범 분석과 분리된 섹션 단위 오류 상태를 표시.
 
 ### 3.4 [Feature 4] Database & Archiving (Room DB)
 * **Schema (ListenHistory):**
     * `id` (Primary Key)
     * `timestamp` (Date/Time)
-    * `artist_name`, `track_title`, `genre`
-    * `review_summary`, `translated_lyrics`
+    * `artist_name`, `album_title`
+    * `primary_genre`, `secondary_genre` (정규화된 앨범 기준 대표 장르)
+    * `genre_candidates_json` (Gemini의 앨범 기준 장르 후보와 신뢰도 보존)
+    * `rym_rating`, `pitchfork_score`, `metacritic_score`, `aoty_score` (있는 출처만 저장)
+    * `missing_sources`, `reliability_notes` (표시하지 않은 출처와 신뢰도 주의사항)
+    * `review_summary`, `original_lyrics`
+    * `translated_lyrics` (후속 번역 기능을 위한 nullable 예약 필드)
 * **Functional Requirements:** '저장' 버튼 클릭 시 현재 조회된 모든 데이터를 Local DB에 커밋.
 
 ### 3.5 [Feature 5] Preference Visualization (Charts)
@@ -91,17 +103,21 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 * **Core Framing Constraint:** 본 기능은 "다음 곡 추천"이 아니라 "취향 탐험 경로 안내"를 목표로 한다.
 * **Functional Requirements:**
     * 초기 상태에서 탐험 지도는 비활성(빈 노드) 상태로 시작한다.
-    * 곡/앨범 저장 시 해당 곡의 Primary/Secondary Genre를 기준으로 중심 노드를 활성화한다.
-    * 중심 노드와 인접 장르 노드를 연결선으로 표시한다.
-    * 미탐험 인접 장르는 잠금 해제 가능 영역으로 표시한다.
-    * 반복 저장/장기 기록/장르 비율/이동 패턴을 반영해 확장 경로 우선순위를 갱신한다.
+    * 곡 저장 시 식별된 앨범의 장르 후보를 표준 장르 사전에 매핑한다.
+    * 신뢰도 기준을 통과하고 표준 장르 사전에 존재하는 후보만 활성 장르로 저장한다.
+    * 활성 장르와 정적 장르 사전에서 직접 연결된 1-hop 주변 노드만 화면에 표시한다.
+    * 알 수 없는 장르, 사전에 없는 장르, 활성 장르와 직접 연결되지 않은 노드는 화면에 표시하지 않는다.
+    * 장르 간 영향선은 AI가 생성하지 않고, 사람이 검수한 정적 장르 사전의 연결만 사용한다.
+    * 반복 저장 횟수는 기존 영향선을 새로 만들지 않고 시각적 강도와 우선순위만 보정한다.
 * **User-visible Outputs:**
     * 현재 취향 흐름 예시(예: Hip-hop -> Jazz Rap -> Neo Soul)
-    * 새 영역 활성화 알림(예: New Area Unlocked: Dream Pop)
-    * 중심 장르 / 인접 장르 / 미탐험 영역 구분 시각화
+    * 새 장르 활성화 알림
+    * 활성 장르 / 직접 연결된 주변 후보 구분 시각화
 * **Logical Constraints:**
     * 추천 어휘("추천", "다음 곡")보다 탐험 어휘("연결", "확장", "탐험")를 우선 사용해야 한다.
-    * 인접 장르 계산은 내부 장르 인접 맵(표준 장르 맵 + 연결 규칙)을 사용한다.
+    * 인접 장르 계산은 내부 장르 사전(표준 장르 목록 + 검수된 정적 영향선)만 사용한다.
+    * AI가 반환한 자유 텍스트 장르 또는 영향 관계를 검증 없이 그래프에 삽입하지 않는다.
+    * MVP 지도는 1-hop만 표시한다. 2-hop 확장은 후속 검토 대상으로 둔다.
 
 ---
 
@@ -115,7 +131,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 * **Local DB:** Room Persistence Library
 
 ### 4.2 API Integration Flow
-[Catch Music] -> [Extract Strings] -> [Parallel Call: Perplexity & lyrics.ovh] -> [lyrics.ovh Result -> Gemini Translation] -> [Archive Commit] -> [Genre Normalization] -> [Adjacency Map Update] -> [Combine & Display]
+[Catch Music] -> [Extract Artist/Title] -> [Identify Album via Gemini] -> [Fetch Album-based Metadata + Genre Candidates] -> [lyrics.ovh Raw Lyrics] -> [Archive Commit] -> [Genre Dictionary Normalization] -> [Verified 1-hop Graph Lookup] -> [Combine & Display]
 
 ---
 
@@ -137,26 +153,26 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     `lyrics.ovh`는 오픈소스 수준의 프로젝트로, 서버 가동률이 불안정하고 데이터 누락이 잦습니다. 상용 앱 수준의 안정성을 원한다면 Genius API나 Musixmatch API로의 전환을 고려해야 합니다.
 
 2.  **Token Economy (비용 문제):**
-    사용자가 매 곡마다 '정보 가져오기'를 누르면 Perplexity와 Gemini 비용이 기하급수적으로 발생합니다. 특히 가사 전체 번역은 토큰 소모가 큽니다.
-    * *Countermeasure:* 번역 결과물은 반드시 DB에 캐싱하여 같은 곡 재조회 시 API 호출을 차단해야 합니다.
+    사용자가 매 곡마다 '정보 가져오기'를 누르면 Gemini 비용이 커질 수 있습니다. 특히 같은 앨범의 여러 곡을 반복 조회하면 앨범 평점/장르 정보가 중복 요청될 수 있습니다.
+    * *Countermeasure:* 앨범 기준 메타데이터는 `artist + album_title` 키로 캐싱하고, 원문 가사는 `artist + track_title` 키로 캐싱하여 중복 API 호출을 차단해야 합니다. 후속 번역 기능을 추가할 경우 번역 결과도 곡 단위로 별도 캐싱합니다.
 
 3.  **Genre Ambiguity (장르의 모호성):**
-    Perplexity가 반환하는 장르는 매번 조금씩 다를 수 있습니다 (예: 'Synth-pop' vs 'Electronic Pop'). 이를 그대로 통계에 넣으면 그래프가 지저분해집니다.
-    * *Countermeasure:* 앱 내부적으로 '표준 장르 맵'을 정의하고 LLM의 결과값을 매핑(Mapping)하는 정규화 로직이 필요합니다.
+    Gemini가 반환하는 앨범 장르는 매번 조금씩 다를 수 있습니다 (예: 'Synth-pop' vs 'Electronic Pop'). 이를 그대로 통계에 넣으면 그래프가 지저분해집니다.
+    * *Countermeasure:* 앱 내부적으로 사람이 검수한 '표준 장르 사전'을 정의한다. Gemini는 장르 후보와 신뢰도만 반환하고, 사전에 없는 후보는 그래프에서 제외한다.
 
 4.  **Background Limitation (OS 제약):**
     Android 12 이후 백그라운드 서비스 제약이 강화되었습니다. `NotificationListenerService`가 시스템에 의해 킬(Kill)당할 경우를 대비해, 포그라운드 서비스(Foreground Service) 활용 및 권한 안내 가이드를 철저히 설계해야 합니다.
 
 5.  **Information Hallucination (정보 환각):**
-    RYM 평점은 LLM이 검색을 통해 가져오지만, 없는 평점을 지어낼 확률이 0이 아닙니다. '이 정보는 AI에 의해 생성되었으며 실제와 다를 수 있음'이라는 면책 조항은 디자인적으로 필수입니다.
+    RYM, Pitchfork, Metacritic, AOTY 평점은 앨범 기준으로만 취급한다. Gemini가 확인되지 않은 점수를 만들어낼 위험이 있으므로, 출처별 값은 실제로 확인 가능한 경우에만 표시하고 없으면 `null`로 둔다. '이 정보는 AI에 의해 생성되었으며 실제와 다를 수 있음'이라는 면책 조항은 디자인적으로 필수입니다.
 
-6.  **Exploration Bias (탐험 편향):**
-    인접 장르 계산 규칙이 단순하면 특정 장르 축으로만 경로가 집중되어 "탐험"이 아닌 "편향된 반복"이 될 수 있습니다.
-    * *Countermeasure:* 장기 기록 기반 다양성 보정(Exploration Diversity Weight)과 미탐험 영역 가중치를 함께 적용한다.
+6.  **Exploration Graph Integrity (탐험 그래프 무결성):**
+    AI가 장르 간 영향선을 즉석에서 만들면 그럴듯하지만 검증되지 않은 계보가 누적될 수 있습니다.
+    * *Countermeasure:* 장르 간 영향선은 검수된 정적 장르 사전에서만 조회한다. AI는 작품-장르 후보 생성까지만 담당한다.
 
 7.  **Cold Start Map (초기 지도 공백):**
     신규 사용자는 저장 이력이 적어 지도가 과도하게 비어 보일 수 있습니다.
-    * *Countermeasure:* 초기에 최소 인접 노드 힌트를 제공하되, 추천 문구 대신 "탐험 시작점" 문구를 사용한다.
+    * *Countermeasure:* 첫 활성 장르가 생기기 전에는 빈 상태를 유지한다. 활성 장르가 생긴 뒤에만 사전에서 직접 연결된 1-hop 주변 후보를 표시한다.
 
 ---
 

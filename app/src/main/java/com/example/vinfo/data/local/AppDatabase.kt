@@ -22,7 +22,7 @@ class GenreConverters {
     }
 }
 
-@Database(entities = [AlbumEntity::class], version = 1, exportSchema = false)
+@Database(entities = [AlbumEntity::class], version = 3, exportSchema = false)
 @TypeConverters(GenreConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao
@@ -37,7 +37,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "vinfo_database"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

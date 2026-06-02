@@ -8,10 +8,15 @@ data class TrackMetadata(
     val secondaryGenre: GenreCategory?,
     val genreSource: GenreSource,
     val rymRating: Float?,
+    val pitchforkScore: Float?,
+    val metacriticScore: Int?,
+    val aotyScore: Int?,
     val criticsSummary: String,
     val interviewSummary: String?,
     val listeningGuide: String,
-    val samplesUsed: List<String>
+    val samplesUsed: List<String>,
+    val missingSources: List<String>,
+    val reliabilityNotes: List<String>
 )
 
 enum class GenreCategory {

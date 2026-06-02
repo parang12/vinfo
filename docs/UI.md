@@ -4,7 +4,7 @@ Project: vinfo (Vinyl + Information)
 Target Platform: Android (API 26+)
 UI Framework: Jetpack Compose + Material 3
 Document Status: Unified Source of Truth
-Updated: 2026-05-14
+Updated: 2026-06-02
 
 ---
 
@@ -35,8 +35,8 @@ vinfo UI는 "다음 곡 추천"보다 "취향의 연결성과 확장 경로 탐�
 - vinfo는 음악 추천 앱이 아니라, 장기 청취 기록 기반의 취향 인접 지도 시스템이다.
 
 UX 원칙:
-- 추천 문구보다 탐험 문구 사용: 연결, 확장, 탐험, 해금
-- 현재 취향 중심 노드 + 인접 노드 + 미탐험 노드 구분
+- 추천 문구보다 탐험 문구 사용: 연결, 확장, 탐험, 활성화
+- 현재 취향 중심 노드 + 직접 연결된 1-hop 주변 후보 구분
 - 저장 행동이 곧 지도 확장으로 연결되도록 피드백 제공
 
 ---
@@ -60,8 +60,8 @@ Root
 
 ### 노드 유형
 - Activated: 사용자가 저장하여 활성화된 장르(시각적 강조)
-- Adjacent: 활성 장르와 연결 가능한 장르(탐험 후보)
-- Locked: 아직 잠금 상태인 미탐험 영역
+- Adjacent: 활성 장르와 검수된 장르 사전에서 직접 연결된 1-hop 탐험 후보
+- Hidden: 알 수 없는 장르, 사전 미등록 장르, 직접 연결되지 않은 미탐험 영역은 렌더링하지 않음
 
 ### 상호작용
 - 탭: 해당 장르의 아카이브 목록으로 이동
@@ -69,11 +69,11 @@ Root
 - 엣지 탭: 연결 근거 팝업(why 연결되었는지 요약)
 
 ### 시각화/애니메이션
-- 활성화/잠금 해제 시 간단한 확장 + 배지 토스트(성능 고려, 낮은 해상도에서는 애니메이션 축소)
+- 새 장르 활성화 시 간단한 확장 + 배지 토스트(성능 고려, 낮은 해상도에서는 애니메이션 축소)
 - 색상 외 표시(심볼/테두리/패턴)로 접근성 확보
 
 ### 툴팁 및 설명
-- 각 엣지/노드의 근거(evidence)는 `Adjacency.evidenceJson`을 기반으로 툴팁에 표시(예: 저장횟수, LLM 유사도)
+- 각 엣지/노드의 근거(evidence)는 정적 장르 사전의 검수 정보와 저장 이력을 기반으로 툴팁에 표시
 
 ### 접근성
 - 색약 모드, 키보드 포커스, 콘텐츠 설명(AccessibilityLabel) 제공
@@ -92,7 +92,8 @@ Bottom Navigation:
 
 설명:
 - 기존 Stats 탭을 Insight Hub로 확장한다.
-- Insight Hub 내부에서 Segmented Control로 Taste Map / Genre Stats를 전환한다.
+- 구현 현재 상태: Insight 진입 경로는 Taste Map을 우선 노출한다.
+- Insight Hub 내부의 Segmented Control로 Taste Map / Genre Stats를 전환하는 구조는 후속 작업으로 유지한다.
 
 ---
 
@@ -101,10 +102,10 @@ Bottom Navigation:
 | Screen | 목적 | 핵심 요소 |
 | --- | --- | --- |
 | Now Playing | 현재 재생 감지 및 분석 시작 | Hero 카드, Catch Now CTA, 최근 감상 |
-| Track Detail | AI 분석 상세 확인 및 저장 | 장르/점수/비평/가사/면책 + 저장 버튼 |
+| Track Detail | 앨범 기준 AI 분석 상세 확인 및 저장 | 앨범 장르/출처별 점수/비평/가사/면책 + 저장 버튼 |
 | Archive List | 기록 검색/필터/정리 | 검색, 칩 필터, 다중 선택 삭제 |
 | Archive Detail | 저장된 상세 재확인 | Track Detail 레이아웃 재사용 |
-| Taste Map (New) | 취향 인접 지도 탐험 | 노드 그래프, 연결선, 해금 상태 |
+| Taste Map (New) | 취향 인접 지도 탐험 | 노드 그래프, 검수된 연결선, 활성/인접 상태 |
 | Genre Stats | 장르 비율/변화 분석 | 도넛, KPI, 기간별 차트 |
 | Settings | 권한/키/테마/데이터 관리 | 카드형 섹션, 위험 액션 구분 |
 
@@ -139,26 +140,37 @@ Bottom Navigation:
 ### 6.2 Visual Model
 노드 유형:
 - Activated Node: 이미 저장/강화된 장르
-- Adjacent Node: 연결 가능 장르
-- Unexplored Node: 아직 미탐험 영역
+- Adjacent Node: 활성 장르와 정적 사전에서 직접 연결된 1-hop 후보
+- Hidden Node: `Unknown`, 사전 미등록 장르, 2-hop 이상 떨어진 노드는 화면에 표시하지 않음
 
 엣지 유형:
-- Solid: 이미 이동한 경로
-- Dashed: 잠재 확장 경로
+- Solid Strong: 저장된 활성 장르 사이의 검수된 관계
+- Solid Soft: 활성 장르와 1-hop 주변 후보 사이의 검수된 관계
 
 ### 6.3 User Journey
 1. 초기: 빈 지도 또는 최소 힌트 노드
-2. 곡 저장: 중심 장르 활성화
+2. 곡 저장: 해당 곡이 수록된 앨범의 중심 장르 활성화
 3. 인접 장르 노출: 연결선/노드 열림
-4. 반복 저장: 경로 강도 증가
-5. 신규 장르 진입: New Area Unlocked 토스트/배지
+4. 반복 저장: 검수된 기존 경로의 시각적 강도 증가
+5. 신규 장르 진입: 새 장르 활성화 토스트/배지
+
+구현 메모:
+- 현재 구현은 cold-start empty state를 기본값으로 사용한다.
+- 샘플 노드/엣지는 미리보기 및 디자인 검토용으로만 유지한다.
+- 노드 탭과 롱프레스, 엣지 탭/롱프레스 근거 팝업은 구현되어 있다.
+- 풀스크린 지도에서 드래그 이동, 핀치 줌, 확대/축소, 중앙 복귀를 지원한다.
+- 장르 간 영향선은 AI가 생성하지 않는다. 사람이 검수한 정적 장르 사전만 사용한다.
 
 ### 6.4 Core Components
-- Map Canvas (pan/zoom optional)
+- Full-screen Map Canvas (pan/zoom)
 - Node Card Tooltip (장르 설명, 저장 수, 최근 진입 시점)
 - Flow Summary Bar
-- Unlock Event Banner
-- Legend (활성/인접/미탐험)
+- Activation Event Banner
+- Legend (활성/인접)
+
+구현 상태:
+- Full-screen Map Canvas, Node Card, Flow Summary Bar, Activation Event Banner, Legend는 구현되어 있다.
+- 투명도/테두리/아이콘으로 상태를 구분하고, 접근성 라벨을 각 노드에 제공한다.
 
 ### 6.5 Copy Tone
 권장:
@@ -182,11 +194,16 @@ Bottom Navigation:
 - 권한 배너는 조건부 노출
 - 큰 Hero 카드 + Catch Now 버튼 우선
 - 최근 감상은 텍스트 중심 카드
+ - 구현 현황: 상단에 `NotificationPermissionBanner`를 통해 Notification Listener 권한 상태를 안내하고, 설정 열기 버튼을 제공함(권한 미허용 시 노출).
 
 ### 7.2 Track Detail
-- Hero -> Genre -> 3열 Score -> Critics -> Interview -> Sampling -> Guide -> Lyrics -> AI Disclaimer
+- Hero -> Album Genre -> Rating Sources -> Critics -> Interview -> Sampling -> Guide -> Lyrics -> AI Disclaimer
 - 하단 고정 "보관함에 추가" 버튼 유지
-- 점수 컬럼: RYM / Critics / AI Agreement
+- 입력은 현재 곡의 아티스트/제목이지만, 장르/평론/평점은 Gemini가 식별한 앨범 기준으로 표시
+- 점수 컬럼: RYM / Pitchfork / Metacritic / AOTY 중 확인 가능한 출처만 표시
+- 확인되지 않은 평점 출처는 빈 카드로 남기지 않고 숨김
+- 구현 현재 상태: `DetailScreen`은 `TrackMetadata.rymRating`, `pitchforkScore`, `metacriticScore`, `aotyScore` 중 non-null 값만 `앨범 평점` 영역에 렌더링한다.
+- 구현 현재 상태: `lyrics.ovh`에서 현재 곡의 원문 가사만 조회한다. 번역 탭과 Gemini 번역 호출은 후속 작업이다.
 
 ### 7.3 Archive List
 - 검색바 + 빠른 필터 칩
@@ -260,13 +277,19 @@ Bottom Navigation:
 - MapEmpty
 - MapBootstrapping
 - MapReady
-- NodeUnlocked
+- NodeActivated
 - MapUpdateFailed
+
+구현 메모:
+- 현재 기본 진입 상태는 `MapEmpty`에 해당한다.
+- 미리보기에서는 샘플 상태를 별도로 보여주지만, 런타임 기본값은 빈 지도다.
+- `MapBootstrapping`과 `MapUpdateFailed`는 향후 Repository/Flow 연동 시 연결한다.
 
 Track Detail 추가 상태:
 - MetadataLoading / Loaded
+- AlbumIdentifying / AlbumIdentified / AlbumIdentificationLowConfidence
 - GenreLoading / Loaded
-- LyricsLoading / TranslationLoading
+- LyricsLoading / LyricsLoaded / LyricsUnavailable
 - PartialFailed / CriticalFailed
 
 ---
@@ -302,7 +325,7 @@ Track Detail 추가 상태:
 - 근거 기반 설명
 
 표현 규칙:
-- 탐험: 연결, 확장, 흐름, 해금
+- 탐험: 연결, 확장, 흐름, 활성화
 - 금지: 추천, 맞춤 추천, 다음 곡 자동 제안
 
 ---
@@ -317,6 +340,15 @@ Track Detail 추가 상태:
 
 기존 화면은 v2 구현을 유지하되, 탐험 지도와 통합 내비게이션 우선으로 확장한다.
 
+현재 구현 반영:
+- `Route.GenreStats` 진입 시 Taste Map 화면이 먼저 열린다.
+- Genre Stats는 별도 화면으로 남겨두었고, Hub 내 세그먼트 전환은 아직 연결하지 않았다.
+- Taste Map은 빈 상태를 기본값으로 시작하며, 현재 구현은 아카이브 장르와 인라인 정적 연결 데이터를 이용해 활성 노드와 직접 연결된 1-hop 주변 노드만 표시한다.
+- 목표 구조에서는 인라인 정적 연결 데이터를 버전 관리되는 장르 사전 리소스로 분리하고, Gemini의 장르 후보 배열을 사전에 정규화한 뒤 화면 상태를 생성한다.
+ - Notification Listener 권한 안내 배너(`NotificationPermissionBanner`) 및 설정 열기 유틸이 추가되어 사용자에게 권한 활성화를 유도한다.
+ - `ActiveMediaMonitorService`가 MediaSession 우선으로 메타데이터를 읽도록 개선되었고, 마지막으로 사용된 `MediaController`를 통해 `skipToNext()`/`play()`/`pause()` 등의 transport control 호출을 지원하도록 헬퍼가 추가되었다.
+ - 아직 구현되지 않음: 앱 자체 알림 전송을 위한 `POST_NOTIFICATIONS` 런타임 요청(매니페스트/런처/UI)은 보류 상태.
+
 ---
 
 ## 15. Change Log
@@ -326,6 +358,22 @@ v3 (2026-05-14)
 - Stats를 Insight Hub 구조로 확장
 - Taste Map(Genre Adjacency Map) 화면 및 상태 모델 신규 추가
 - 추천 중심 문맥 제거, 탐험 중심 카피 규칙 명시
+
+v3.1 (2026-05-22)
+- Notification Listener 권한 안내 배너 및 설정 열기 유틸 추가
+- `ActiveMediaMonitorService` MediaSession 우선 메타데이터 읽기 및 transport control 헬퍼 추가
+- `POST_NOTIFICATIONS` 런타임 요청은 향후 구현 예정(문서화)
+
+v3.2 (2026-05-22)
+- `artist + title`은 앨범 식별 입력으로 유지하되, Track Detail의 장르/평론/평점 표시는 앨범 기준으로 고정
+- RYM/Pitchfork/Metacritic/AOTY는 확인 가능한 출처만 표시하고 없는 출처는 숨김
+- Catch Now 상세 화면은 Gemini 응답으로 받은 출처별 앨범 평점만 표시하며, 확인되지 않은 출처는 빈 카드 없이 생략
+
+v3.3 (2026-06-02)
+- Taste Map을 전체 화면 pan/zoom 캔버스로 정리
+- Gemini는 앨범 장르 후보와 신뢰도만 반환하고, 장르 간 연결선은 검수된 정적 장르 사전에서만 조회하도록 명세
+- 알 수 없는 장르, 사전 미등록 장르, 직접 연결되지 않은 노드는 지도 화면 모델에서 제외
+- 가사 상세 화면은 `lyrics.ovh` 원문 조회까지만 현재 범위로 명시
 
 ---
 

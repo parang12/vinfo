@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,11 +17,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.vinfo.ui.archive.DummyArchive
 import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.ui.component.FloatingSettingsButton
@@ -35,6 +38,7 @@ fun NowPlayingScreen(
     onCatchNowClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onViewAllArchiveClick: () -> Unit = {},
+    onOpenMapClick: () -> Unit = {},
     isLoading: Boolean = false,
     statusMessage: String? = null,
     currentTrack: NowPlayingTrack? = null
@@ -53,6 +57,7 @@ fun NowPlayingScreen(
         val trackTitle = currentTrack?.title ?: "현재 재생 중인 곡을 감지하는 중"
         val trackArtist = currentTrack?.artist ?: "알림 접근 권한을 확인해 주세요"
         val trackAlbum = currentTrack?.album
+        val albumArtUrl = currentTrack?.albumArtUrl
 
         // 상단 1/3 영역 — Vinfo 제목 가운데 배치
         Box(
@@ -91,91 +96,7 @@ fun NowPlayingScreen(
                 } else {
                     VinfoCard {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            // 바이닐 아트워크 영역
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(1f)
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(
-                                        Brush.linearGradient(
-                                            listOf(
-                                                Color(0xFF091018),
-                                                Color(0xFF141B24),
-                                                Color(0xFF05070A)
-                                            )
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(248.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            Brush.radialGradient(
-                                                listOf(
-                                                    Color(0xFF2E3946),
-                                                    Color(0xFF18212B),
-                                                    Color(0xFF06090D)
-                                                )
-                                            )
-                                        )
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(170.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            Brush.radialGradient(
-                                                listOf(
-                                                    Color(0xFF5A6572),
-                                                    Color(0xFF1D2731),
-                                                    Color(0xFF0A0D11)
-                                                )
-                                            )
-                                        )
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(116.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFF26313D))
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(86.dp)
-                                        .clip(RoundedCornerShape(18.dp))
-                                        .rotate(-32f)
-                                        .background(Color.White.copy(alpha = 0.92f))
-                                        .align(Alignment.CenterStart)
-                                        .offset(x = 44.dp, y = (-42).dp)
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFD8DCE4))
-                                )
-                                Surface(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(16.dp)
-                                        .size(48.dp),
-                                    shape = CircleShape,
-                                    color = Color.White.copy(alpha = 0.95f),
-                                    shadowElevation = 4.dp
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Default.GraphicEq,
-                                            contentDescription = null,
-                                            tint = Color(0xFF0058BC),
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-                            }
+                            AlbumArtwork(albumArtUrl = albumArtUrl)
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -224,25 +145,50 @@ fun NowPlayingScreen(
 
             // Catch Now CTA 버튼
             item {
-                Button(
-                    onClick = onCatchNowClick,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(58.dp),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0058BC))
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        Icons.Default.AddCircleOutline,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Catch Now",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Button(
+                        onClick = onCatchNowClick,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0058BC))
+                    ) {
+                        Icon(
+                            Icons.Default.AddCircleOutline,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Catch Now",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = onOpenMapClick,
+                        modifier = Modifier.fillMaxHeight(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0058BC))
+                    ) {
+                        Icon(
+                            Icons.Default.Map,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "맵 열기",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -286,6 +232,110 @@ fun NowPlayingScreen(
                 .padding(end = 20.dp, top = 12.dp)
         )
     }
+}
+
+@Composable
+private fun AlbumArtwork(albumArtUrl: String?) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(20.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        Color(0xFF091018),
+                        Color(0xFF141B24),
+                        Color(0xFF05070A)
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        VinylArtworkFallback()
+
+        if (!albumArtUrl.isNullOrBlank()) {
+            AsyncImage(
+                model = albumArtUrl,
+                contentDescription = "앨범 커버",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(20.dp))
+            )
+        }
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .size(48.dp),
+            shape = CircleShape,
+            color = Color.White.copy(alpha = 0.95f),
+            shadowElevation = 4.dp
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    Icons.Default.GraphicEq,
+                    contentDescription = null,
+                    tint = Color(0xFF0058BC),
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VinylArtworkFallback() {
+    Box(
+        modifier = Modifier
+            .size(248.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.radialGradient(
+                    listOf(
+                        Color(0xFF2E3946),
+                        Color(0xFF18212B),
+                        Color(0xFF06090D)
+                    )
+                )
+            )
+    )
+    Box(
+        modifier = Modifier
+            .size(170.dp)
+            .clip(CircleShape)
+            .background(
+                Brush.radialGradient(
+                    listOf(
+                        Color(0xFF5A6572),
+                        Color(0xFF1D2731),
+                        Color(0xFF0A0D11)
+                    )
+                )
+            )
+    )
+    Box(
+        modifier = Modifier
+            .size(116.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF26313D))
+    )
+    Box(
+        modifier = Modifier
+            .size(86.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .rotate(-32f)
+            .background(Color.White.copy(alpha = 0.92f))
+            .offset(x = (-84).dp, y = (-42).dp)
+    )
+    Box(
+        modifier = Modifier
+            .size(16.dp)
+            .clip(CircleShape)
+            .background(Color(0xFFD8DCE4))
+    )
 }
 
 @Composable

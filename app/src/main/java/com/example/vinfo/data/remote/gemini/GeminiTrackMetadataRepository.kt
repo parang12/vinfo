@@ -1,4 +1,4 @@
-package com.example.vinfo.data.remote.perplexity
+package com.example.vinfo.data.remote.gemini
 
 import com.example.vinfo.domain.model.AppResult
 import com.example.vinfo.domain.model.GenreMapper
@@ -10,8 +10,8 @@ import kotlinx.coroutines.withContext
 import retrofit2.HttpException
 import java.io.IOException
 
-class PerplexityTrackMetadataRepository(
-    private val jsonParser: PerplexityJsonParser = PerplexityJsonParser()
+class GeminiTrackMetadataRepository(
+    private val jsonParser: GeminiJsonParser = GeminiJsonParser()
 ) : TrackMetadataRepository {
 
     override suspend fun fetchTrackMetadata(
@@ -21,14 +21,14 @@ class PerplexityTrackMetadataRepository(
         apiKey: String
     ): AppResult<TrackMetadata> = withContext(Dispatchers.IO) {
         if (apiKey.isBlank()) {
-            return@withContext AppResult.Error("Perplexity API Key가 비어 있습니다.")
+            return@withContext AppResult.Error("Gemini API Key가 비어 있습니다.")
         }
 
-        val service = PerplexityApiClientFactory.create(apiKey)
+        val service = GeminiApiClientFactory.create(apiKey)
 
         val rawResponse = retryNetworkCall {
-            service.createChatCompletion(PerplexityRequestBuilder.build(artist, title, album))
-        } ?: return@withContext AppResult.Error("Perplexity API 응답을 가져오지 못했습니다.")
+            service.generate(GeminiRequestBuilder.DEFAULT_MODEL, apiKey, GeminiRequestBuilder.build(artist, title, album))
+        } ?: return@withContext AppResult.Error("Gemini API 응답을 가져오지 못했습니다.")
 
         when (val parsed = jsonParser.parseTrackMetadata(rawResponse)) {
             is AppResult.Success -> AppResult.Success(parsed.data.toDomainMetadata())
@@ -77,10 +77,15 @@ class PerplexityTrackMetadataRepository(
             secondaryGenre = secondaryGenre?.let(GenreMapper::fromRawGenre),
             genreSource = GenreMapper.fromRawSource(genreSource),
             rymRating = rymRating,
+            pitchforkScore = pitchforkScore,
+            metacriticScore = metacriticScore,
+            aotyScore = aotyScore,
             criticsSummary = criticsSummary,
             interviewSummary = interviewSummary,
             listeningGuide = listeningGuide,
-            samplesUsed = samplesUsed
+            samplesUsed = samplesUsed,
+            missingSources = missingSources,
+            reliabilityNotes = reliabilityNotes
         )
     }
 }

@@ -4,7 +4,8 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vinfo.data.nowplaying.NowPlayingEventBus
-import com.example.vinfo.data.remote.perplexity.PerplexityTrackMetadataRepository
+import com.example.vinfo.data.remote.gemini.GeminiTrackMetadataRepository
+import com.example.vinfo.data.remote.lyrics.LyricsRepository
 import com.example.vinfo.data.settings.ApiKeyStore
 import com.example.vinfo.domain.model.AppResult
 import com.example.vinfo.domain.model.NowPlayingTrack
@@ -23,15 +24,19 @@ import java.util.Locale
 
 data class NowPlayingUiState(
     val isLoading: Boolean = false,
+    val isLyricsLoading: Boolean = false,
     val statusMessage: String? = null,
     val currentTrack: NowPlayingTrack? = null,
-    val trackMetadata: TrackMetadata? = null
+    val trackMetadata: TrackMetadata? = null,
+    val originalLyrics: String? = null,
+    val lyricsErrorMessage: String? = null
 )
 
 class NowPlayingViewModel(application: Application) : AndroidViewModel(application) {
 
     private val apiKeyStore = ApiKeyStore(application.applicationContext)
-    private val getTrackInformationUseCase = GetTrackInformationUseCase(PerplexityTrackMetadataRepository())
+    private val getTrackInformationUseCase = GetTrackInformationUseCase(GeminiTrackMetadataRepository())
+    private val lyricsRepository = LyricsRepository()
 
     private val _uiState = MutableStateFlow(NowPlayingUiState())
     val uiState: StateFlow<NowPlayingUiState> = _uiState.asStateFlow()
@@ -42,8 +47,12 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
     init {
         viewModelScope.launch {
             NowPlayingEventBus.currentTrack.collect { track ->
-                _uiState.update {
-                    it.copy(currentTrack = track)
+                // 디버그: NowPlayingEventBus로부터 전달된 albumArtUrl 확인
+                try {
+                    android.util.Log.d("NowPlayingViewModel", "EventBus track received: ${track?.artist} - ${track?.title} | albumArtUrl=${track?.albumArtUrl}")
+                } catch (_: Exception) {}
+                _uiState.update { state ->
+                    state.copy(currentTrack = state.currentTrack.mergeAlbumArtIfSameTrack(track))
                 }
             }
         }
@@ -51,21 +60,6 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
 
     fun catchNow() {
         viewModelScope.launch {
-            val apiKey = apiKeyStore.getPerplexityApiKey()
-            if (apiKey.isBlank()) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        statusMessage = "Perplexity API Key가 설정되지 않았습니다. 설정 화면에서 저장해 주세요."
-                    )
-                }
-                return@launch
-            }
-
-            _uiState.update {
-                it.copy(isLoading = true, statusMessage = "Perplexity로 음악 정보를 가져오는 중입니다.")
-            }
-
             val currentTrack = _uiState.value.currentTrack
             if (currentTrack == null) {
                 _uiState.update {
@@ -77,14 +71,41 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
                 return@launch
             }
 
+            _uiState.update {
+                it.copy(
+                    isLyricsLoading = true,
+                    originalLyrics = null,
+                    lyricsErrorMessage = null
+                )
+            }
+            fetchLyrics(currentTrack)
+
+            val apiKey = apiKeyStore.getGeminiApiKey()
+            if (apiKey.isBlank()) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        statusMessage = "원문 가사를 조회 중입니다. 앨범 분석을 사용하려면 Gemini API Key를 설정해 주세요."
+                    )
+                }
+                return@launch
+            }
+
+            _uiState.update {
+                it.copy(isLoading = true, statusMessage = "Gemini로 음악 정보를 가져오는 중입니다.")
+            }
+
             when (val result = getTrackInformationUseCase(currentTrack.artist, currentTrack.title, currentTrack.album, apiKey)) {
                 is AppResult.Success -> {
                     val metadata = result.data
                     _uiState.value = NowPlayingUiState(
                         isLoading = false,
+                        isLyricsLoading = _uiState.value.isLyricsLoading,
                         statusMessage = "정보를 가져왔습니다.",
                         currentTrack = currentTrack,
-                        trackMetadata = metadata
+                        trackMetadata = metadata,
+                        originalLyrics = _uiState.value.originalLyrics,
+                        lyricsErrorMessage = _uiState.value.lyricsErrorMessage
                     )
                     _navigationEvents.tryEmit(buildTrackId(metadata.artist, metadata.title))
                 }
@@ -118,6 +139,47 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
         val normalized = "${artist.trim().lowercase(Locale.US)}|${title.trim().lowercase(Locale.US)}"
         val digest = MessageDigest.getInstance("SHA-256").digest(normalized.toByteArray(Charsets.UTF_8))
         return digest.take(16).joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private fun fetchLyrics(currentTrack: NowPlayingTrack) {
+        viewModelScope.launch {
+            when (val result = lyricsRepository.getRawLyrics(currentTrack.artist, currentTrack.title)) {
+                is AppResult.Success -> {
+                    _uiState.update {
+                        it.copy(
+                            isLyricsLoading = false,
+                            originalLyrics = result.data,
+                            lyricsErrorMessage = null
+                        )
+                    }
+                }
+                is AppResult.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLyricsLoading = false,
+                            originalLyrics = null,
+                            lyricsErrorMessage = result.message
+                        )
+                    }
+                }
+                AppResult.Loading -> Unit
+            }
+        }
+    }
+
+    private fun NowPlayingTrack?.mergeAlbumArtIfSameTrack(incoming: NowPlayingTrack?): NowPlayingTrack? {
+        if (incoming == null) return null
+        if (!incoming.albumArtUrl.isNullOrBlank()) return incoming
+
+        val previous = this ?: return incoming
+        val isSameTrack = previous.artist.equals(incoming.artist, ignoreCase = true) &&
+            previous.title.equals(incoming.title, ignoreCase = true)
+
+        return if (isSameTrack && !previous.albumArtUrl.isNullOrBlank()) {
+            incoming.copy(albumArtUrl = previous.albumArtUrl)
+        } else {
+            incoming
+        }
     }
 
 }

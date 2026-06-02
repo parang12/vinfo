@@ -1,0 +1,1200 @@
+package com.example.vinfo.ui.stats
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.vinfo.ui.archive.DummyArchive
+import com.example.vinfo.ui.component.FloatingBackButton
+import com.example.vinfo.ui.component.FloatingSettingsButton
+import com.example.vinfo.ui.component.GenreChip
+import com.example.vinfo.ui.component.VinfoCard
+import com.example.vinfo.ui.theme.VinfoTheme
+import kotlin.math.roundToInt
+
+internal enum class GenreMapNodeType {
+    Activated,
+    Adjacent,
+    Locked
+}
+
+internal data class GenreMapNodeUi(
+    val id: String,
+    val genreKey: String,
+    val label: String,
+    val note: String,
+    val saveCount: Int,
+    val lastActivatedText: String,
+    val type: GenreMapNodeType,
+    val position: Offset,
+    val accessibilityLabel: String,
+)
+
+internal data class GenreMapEdgeUi(
+    val fromId: String,
+    val toId: String,
+    val label: String,
+    val evidence: String,
+    val unlocked: Boolean,
+)
+
+internal data class GenreMapUiState(
+    val headline: String,
+    val subtitle: String,
+    val flowSummary: String,
+    val activeGenreCount: Int,
+    val candidateGenreCount: Int,
+    val recentFlowCount: Int,
+    val unlockBanner: String?,
+    val unlockBannerDetail: String?,
+    val nodes: List<GenreMapNodeUi>,
+    val edges: List<GenreMapEdgeUi>,
+    val recentAlbums: List<DummyArchive>,
+) {
+    companion object {
+        fun empty() = GenreMapUiState(
+            headline = "Taste Flow",
+            subtitle = "저장한 앨범이 만든 장르 흐름",
+            flowSummary = "첫 저장 후 탐험이 시작됩니다",
+            activeGenreCount = 0,
+            candidateGenreCount = 0,
+            recentFlowCount = 0,
+            unlockBanner = null,
+            unlockBannerDetail = null,
+            nodes = emptyList(),
+            edges = emptyList(),
+            recentAlbums = emptyList()
+        )
+
+        fun sample() = fromArchive(
+            listOf(
+                DummyArchive("1", "Modal Soul", "Nujabes", listOf("Jazz Rap"), "2026.05.22"),
+                DummyArchive("2", "To Pimp a Butterfly", "Kendrick Lamar", listOf("Hip-Hop", "Jazz Rap"), "2026.05.20"),
+                DummyArchive("3", "Voodoo", "D'Angelo", listOf("Neo Soul", "R&B"), "2026.05.18"),
+                DummyArchive("4", "What's Going On", "Marvin Gaye", listOf("Soul"), "2026.05.15"),
+                DummyArchive("5", "In a Silent Way", "Miles Davis", listOf("Jazz"), "2026.05.10")
+            )
+        )
+
+        fun fromArchive(archiveItems: List<DummyArchive>): GenreMapUiState {
+            if (archiveItems.isEmpty()) return empty()
+
+            val genreCounts = archiveItems
+                .flatMap { it.genres }
+                .mapNotNull { it.toMapGenreName() }
+                .groupingBy { it }
+                .eachCount()
+            if (genreCounts.isEmpty()) return empty()
+
+            val activeGenreNames = genreCounts.keys
+            val candidates = linkedSetOf<String>()
+            flowLinks.forEach { link ->
+                val sourceActive = link.source in activeGenreNames
+                val targetActive = link.target in activeGenreNames
+                if (sourceActive && !targetActive) candidates += link.target
+                if (targetActive && !sourceActive) candidates += link.source
+            }
+
+            val visibleGenreNames = activeGenreNames + candidates
+            val nodes = flowNodes.filter { it.name in visibleGenreNames }.map { node ->
+                val saveCount = genreCounts[node.name] ?: 0
+                val type = when {
+                    saveCount > 0 -> GenreMapNodeType.Activated
+                    else -> GenreMapNodeType.Adjacent
+                }
+                GenreMapNodeUi(
+                    id = node.id,
+                    genreKey = node.name.uppercase().replace(" ", "_").replace("-", "_"),
+                    label = node.name,
+                    note = when (type) {
+                        GenreMapNodeType.Activated -> "저장 앨범 ${saveCount}개"
+                        GenreMapNodeType.Adjacent -> "연결 후보"
+                        GenreMapNodeType.Locked -> ""
+                    },
+                    saveCount = saveCount,
+                    lastActivatedText = if (saveCount > 0) "자동 반영" else "대기 중",
+                    type = type,
+                    position = node.position,
+                    accessibilityLabel = "${node.name}, ${type.koreanLabel()}, 저장 앨범 ${saveCount}개"
+                )
+            }
+
+            val activeNodeNames = nodes
+                .filter { it.type == GenreMapNodeType.Activated }
+                .map { it.label }
+                .toSet()
+            val visibleNodeNames = nodes.map { it.label }.toSet()
+
+            val edges = flowLinks.filter { link ->
+                link.source in visibleNodeNames &&
+                    link.target in visibleNodeNames &&
+                    (link.source in activeNodeNames || link.target in activeNodeNames)
+            }.map { link ->
+                val sourceActive = link.source in activeNodeNames
+                val targetActive = link.target in activeNodeNames
+                val label = when {
+                    sourceActive && targetActive -> "최근 열린 흐름"
+                    else -> "연결 후보"
+                }
+                GenreMapEdgeUi(
+                    fromId = link.source.toNodeId(),
+                    toId = link.target.toNodeId(),
+                    label = label,
+                    evidence = if (sourceActive && targetActive) {
+                        "보관함에 두 장르의 앨범이 함께 저장되어 연결이 활성화되었습니다."
+                    } else {
+                        "저장된 앨범 장르와 직접 맞닿은 주변 흐름입니다."
+                    },
+                    unlocked = true
+                )
+            }
+
+            val activeCount = nodes.count { it.type == GenreMapNodeType.Activated }
+            val candidateCount = nodes.count { it.type == GenreMapNodeType.Adjacent }
+            val recentCount = edges.count { it.label == "최근 열린 흐름" }
+            val topFlow = activeGenreNames.take(3).joinToString(" -> ").ifBlank {
+                "저장 앨범 기반으로 자동 구성 중"
+            }
+
+            return GenreMapUiState(
+                headline = "Taste Flow",
+                subtitle = "저장한 앨범이 만든 장르 흐름",
+                flowSummary = topFlow,
+                activeGenreCount = activeCount,
+                candidateGenreCount = candidateCount,
+                recentFlowCount = recentCount,
+                unlockBanner = "지도 데이터 반영 완료",
+                unlockBannerDetail = "보관함의 앨범 장르를 기준으로 활성 장르와 연결 후보를 계산했습니다.",
+                nodes = nodes,
+                edges = edges,
+                recentAlbums = archiveItems.take(5)
+            )
+        }
+
+        private val flowNodes = listOf(
+            FlowNode("Blues", Offset(0.10f, 0.62f)),
+            FlowNode("Jazz", Offset(0.25f, 0.25f)),
+            FlowNode("Soul", Offset(0.25f, 0.62f)),
+            FlowNode("Funk", Offset(0.40f, 0.38f)),
+            FlowNode("R&B", Offset(0.40f, 0.68f)),
+            FlowNode("Hip-Hop", Offset(0.54f, 0.48f)),
+            FlowNode("Boom Bap", Offset(0.69f, 0.22f)),
+            FlowNode("Trap", Offset(0.69f, 0.72f)),
+            FlowNode("Jazz Rap", Offset(0.72f, 0.48f)),
+            FlowNode("Neo Soul", Offset(0.86f, 0.34f)),
+            FlowNode("Pop Rap", Offset(0.86f, 0.76f)),
+            FlowNode("Art Pop", Offset(0.92f, 0.55f)),
+            FlowNode("Electronic", Offset(0.58f, 0.86f)),
+            FlowNode("House", Offset(0.74f, 0.92f)),
+            FlowNode("Ambient", Offset(0.90f, 0.92f))
+        )
+
+        private val flowLinks = listOf(
+            FlowLink("Blues", "Jazz"),
+            FlowLink("Blues", "Soul"),
+            FlowLink("Jazz", "Funk"),
+            FlowLink("Soul", "R&B"),
+            FlowLink("Funk", "Hip-Hop"),
+            FlowLink("R&B", "Hip-Hop"),
+            FlowLink("Jazz", "Jazz Rap"),
+            FlowLink("Hip-Hop", "Boom Bap"),
+            FlowLink("Hip-Hop", "Trap"),
+            FlowLink("Hip-Hop", "Jazz Rap"),
+            FlowLink("Jazz Rap", "Neo Soul"),
+            FlowLink("Trap", "Pop Rap"),
+            FlowLink("Neo Soul", "Art Pop"),
+            FlowLink("Pop Rap", "Art Pop"),
+            FlowLink("Funk", "Electronic"),
+            FlowLink("Electronic", "House"),
+            FlowLink("Electronic", "Ambient"),
+            FlowLink("Art Pop", "Electronic")
+        )
+
+        private data class FlowNode(val name: String, val position: Offset) {
+            val id: String = name.toNodeId()
+        }
+
+        private data class FlowLink(val source: String, val target: String)
+    }
+}
+
+private fun String.toNodeId(): String = lowercase().replace(" ", "").replace("-", "")
+
+private fun String.toMapGenreName(): String? {
+    val normalized = trim().lowercase()
+    return when {
+        normalized.isBlank() || normalized == "unknown" -> null
+        "jazz rap" in normalized -> "Jazz Rap"
+        "neo soul" in normalized -> "Neo Soul"
+        "boom bap" in normalized -> "Boom Bap"
+        "pop rap" in normalized -> "Pop Rap"
+        "art pop" in normalized -> "Art Pop"
+        "hip" in normalized || "rap" in normalized -> "Hip-Hop"
+        "r&b" in normalized || "rnb" in normalized -> "R&B"
+        "soul" in normalized -> "Soul"
+        "funk" in normalized -> "Funk"
+        "jazz" in normalized -> "Jazz"
+        "trap" in normalized -> "Trap"
+        "house" in normalized -> "House"
+        "ambient" in normalized -> "Ambient"
+        "electronic" in normalized || "electronica" in normalized -> "Electronic"
+        else -> null
+    }
+}
+
+private fun GenreMapNodeType.koreanLabel(): String = when (this) {
+    GenreMapNodeType.Activated -> "활성 장르"
+    GenreMapNodeType.Adjacent -> "연결 후보"
+    GenreMapNodeType.Locked -> "미탐험"
+}
+
+@Composable
+internal fun GenreMapScreen(
+    modifier: Modifier = Modifier,
+    archiveItems: List<DummyArchive> = emptyList(),
+    uiState: GenreMapUiState? = null,
+    onGenreClick: (String) -> Unit = {},
+    onEdgeClick: (String) -> Unit = {},
+    onBackClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
+) {
+    val mapState = uiState ?: remember(archiveItems) { GenreMapUiState.fromArchive(archiveItems) }
+    var selectedNodeId by rememberSaveable(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()?.id) }
+    var selectedNode by remember(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()) }
+    var selectedEdge by remember { mutableStateOf<GenreMapEdgeUi?>(null) }
+    var scale by rememberSaveable { mutableStateOf(0.92f) }
+    var panX by rememberSaveable { mutableStateOf(0f) }
+    var panY by rememberSaveable { mutableStateOf(12f) }
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFFF9F9FF))
+    ) {
+        FullFlowMapCanvas(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(mapState.nodes) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(0.58f, 2.35f)
+                        panX += pan.x
+                        panY += pan.y
+                    }
+                },
+            nodes = mapState.nodes,
+            edges = mapState.edges,
+            selectedNodeId = selectedNodeId,
+            scale = scale,
+            pan = Offset(panX, panY),
+            onNodeSelected = { node ->
+                selectedNodeId = node.id
+                selectedNode = node
+                onGenreClick(node.genreKey)
+            },
+            onEdgeSelected = { edge ->
+                selectedEdge = edge
+                onEdgeClick(edge.label)
+            }
+        )
+
+        MapTopPanel(
+            mapState = mapState,
+            onBackClick = onBackClick,
+            onSettingsClick = onSettingsClick,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 12.dp)
+        )
+
+        MapFloatingControls(
+            scale = scale,
+            onZoomIn = { scale = (scale * 1.18f).coerceAtMost(2.35f) },
+            onZoomOut = { scale = (scale / 1.18f).coerceAtLeast(0.58f) },
+            onRecenter = {
+                scale = 0.92f
+                panX = 0f
+                panY = 12f
+            },
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 18.dp)
+        )
+
+        TasteFlowBottomSheet(
+            selectedNode = selectedNode,
+            recentAlbums = mapState.recentAlbums,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+
+    selectedEdge?.let { edge ->
+        AlertDialog(
+            onDismissRequest = { selectedEdge = null },
+            title = {
+                Text(
+                    text = edge.label,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF181C23)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = edge.evidence,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF4B5563)
+                    )
+                    Text(
+                        text = if (edge.unlocked) {
+                            "이 연결은 이미 열려 있습니다. 노드를 탭해 확장 경로를 확인하세요."
+                        } else {
+                            "이 연결은 잠금 상태입니다. 반복 저장과 최근성이 쌓이면 열릴 수 있습니다."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { selectedEdge = null }) {
+                    Text("닫기")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun MapTopPanel(
+    mapState: GenreMapUiState,
+    onBackClick: () -> Unit,
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White.copy(alpha = 0.94f),
+        shadowElevation = 6.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FloatingBackButton(onClick = onBackClick)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF0058BC))
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = mapState.headline,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0058BC)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = mapState.subtitle,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF181C23)
+                    )
+                }
+                FloatingSettingsButton(onClick = onSettingsClick)
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MapMetric(label = "활성 장르", value = "${mapState.activeGenreCount}개", modifier = Modifier.weight(1f))
+                MapMetric(label = "연결 후보", value = "${mapState.candidateGenreCount}개", modifier = Modifier.weight(1f))
+                MapMetric(label = "최근 열린 흐름", value = "${mapState.recentFlowCount}개", modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MapFloatingControls(
+    scale: Float,
+    onZoomIn: () -> Unit,
+    onZoomOut: () -> Unit,
+    onRecenter: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White.copy(alpha = 0.94f),
+        shadowElevation = 6.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = "${(scale * 100).roundToInt()}%",
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF6B7280)
+            )
+            Text(
+                text = "+",
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onZoomIn)
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0058BC)
+            )
+            Text(
+                text = "-",
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .clickable(onClick = onZoomOut)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0058BC)
+            )
+            Text(
+                text = "중앙",
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xFFEEF4FF))
+                    .clickable(onClick = onRecenter)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0058BC)
+            )
+        }
+    }
+}
+
+@Composable
+private fun TasteFlowBottomSheet(
+    selectedNode: GenreMapNodeUi?,
+    recentAlbums: List<DummyArchive>,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 0.dp),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        color = Color.White.copy(alpha = 0.96f),
+        shadowElevation = 12.dp,
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+    ) {
+        Column(
+            modifier = Modifier
+                .height(252.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp, vertical = 14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .width(34.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(Color(0xFFE4E7F0))
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = selectedNode?.label ?: "분석할 장르를 지도에서 터치하세요",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF181C23)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = selectedNode?.note
+                            ?: "저장한 앨범을 바탕으로 장르가 어떻게 이어지는지 확인할 수 있습니다.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+                selectedNode?.let {
+                    GenreChip(genre = it.type.koreanLabel())
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "최근 저장한 앨범",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF6B7280)
+                )
+                Text(
+                    text = "자동 반영됨",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF0058BC)
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            if (recentAlbums.isEmpty()) {
+                Text(
+                    text = "보관함에 앨범을 저장하면 이곳에 표시됩니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF9CA3AF)
+                )
+            } else {
+                recentAlbums.forEach { album ->
+                    RecentAlbumRow(album = album)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullFlowMapCanvas(
+    nodes: List<GenreMapNodeUi>,
+    edges: List<GenreMapEdgeUi>,
+    selectedNodeId: String?,
+    scale: Float,
+    pan: Offset,
+    onNodeSelected: (GenreMapNodeUi) -> Unit,
+    onEdgeSelected: (GenreMapEdgeUi) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier.background(Color(0xFFF9F9FF))
+    ) {
+        val density = LocalDensity.current
+        val widthPx = with(density) { maxWidth.toPx() }
+        val heightPx = with(density) { maxHeight.toPx() }
+        val center = Offset(widthPx / 2f, heightPx / 2f)
+        val nodeDiameter = 48.dp
+        val nodeDiameterPx = with(density) { nodeDiameter.toPx() }
+        val mapWidth = 980f
+        val mapHeight = 640f
+
+        fun worldPosition(node: GenreMapNodeUi): Offset {
+            return Offset(
+                x = (node.position.x - 0.5f) * mapWidth,
+                y = (node.position.y - 0.5f) * mapHeight
+            )
+        }
+
+        fun screenPosition(node: GenreMapNodeUi): Offset {
+            val world = worldPosition(node)
+            return center + pan + (world * scale)
+        }
+
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawRect(Color(0xFFF9F9FF))
+
+            val gridStep = 72f * scale
+            val gridOffsetX = (pan.x % gridStep)
+            val gridOffsetY = (pan.y % gridStep)
+            var x = gridOffsetX - gridStep
+            while (x < size.width + gridStep) {
+                drawLine(
+                    color = Color(0xFFECEFF7),
+                    start = Offset(x, 0f),
+                    end = Offset(x, size.height),
+                    strokeWidth = 1f
+                )
+                x += gridStep
+            }
+            var y = gridOffsetY - gridStep
+            while (y < size.height + gridStep) {
+                drawLine(
+                    color = Color(0xFFECEFF7),
+                    start = Offset(0f, y),
+                    end = Offset(size.width, y),
+                    strokeWidth = 1f
+                )
+                y += gridStep
+            }
+
+            val lookup = nodes.associateBy { it.id }
+            edges.forEach { edge ->
+                val from = lookup[edge.fromId] ?: return@forEach
+                val to = lookup[edge.toId] ?: return@forEach
+                val start = screenPosition(from)
+                val end = screenPosition(to)
+                val isActive = from.type == GenreMapNodeType.Activated && to.type == GenreMapNodeType.Activated
+                val isCandidate = edge.unlocked && !isActive
+                val lineColor = when {
+                    isActive -> Color(0xFF0058BC)
+                    isCandidate -> Color(0xFF60A5FA)
+                    else -> Color(0xFFCBD5E1)
+                }
+                drawLine(
+                    color = lineColor.copy(alpha = if (edge.unlocked) 0.78f else 0.42f),
+                    start = start,
+                    end = end,
+                    strokeWidth = if (isActive) 5.4f else if (isCandidate) 3.2f else 1.6f,
+                    cap = StrokeCap.Round,
+                    pathEffect = if (edge.unlocked) null else PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+                )
+            }
+        }
+
+        MapLaneLabel(
+            text = "원천 장르",
+            modifier = Modifier.offset {
+                IntOffset(
+                    x = (center.x + pan.x - 390f * scale).roundToInt(),
+                    y = (center.y + pan.y - 270f * scale).roundToInt()
+                )
+            }
+        )
+        MapLaneLabel(
+            text = "중심 흐름",
+            modifier = Modifier.offset {
+                IntOffset(
+                    x = (center.x + pan.x - 65f * scale).roundToInt(),
+                    y = (center.y + pan.y - 270f * scale).roundToInt()
+                )
+            }
+        )
+        MapLaneLabel(
+            text = "파생 흐름",
+            modifier = Modifier.offset {
+                IntOffset(
+                    x = (center.x + pan.x + 255f * scale).roundToInt(),
+                    y = (center.y + pan.y - 270f * scale).roundToInt()
+                )
+            }
+        )
+
+        nodes.forEach { node ->
+            val position = screenPosition(node)
+            FlowNodeBubble(
+                node = node,
+                selected = selectedNodeId == node.id,
+                modifier = Modifier.offset {
+                    IntOffset(
+                        x = (position.x - nodeDiameterPx / 2f).roundToInt(),
+                        y = (position.y - nodeDiameterPx / 2f).roundToInt()
+                    )
+                },
+                onClick = { onNodeSelected(node) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun MapLaneLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(Color.White.copy(alpha = 0.72f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.ExtraBold,
+        color = Color(0xFF94A3B8)
+    )
+}
+
+@Composable
+private fun FlowNodeBubble(
+    node: GenreMapNodeUi,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.12f else 1f,
+        label = "fullFlowNodeScale"
+    )
+    Column(
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        },
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(48.dp)
+                .clickable(onClick = onClick)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = node.accessibilityLabel
+                },
+            shape = CircleShape,
+            color = Color.White,
+            shadowElevation = if (selected) 8.dp else 3.dp,
+            border = androidx.compose.foundation.BorderStroke(
+                width = if (selected) 2.dp else 1.dp,
+                color = when (node.type) {
+                    GenreMapNodeType.Activated -> Color(0xFF0058BC)
+                    GenreMapNodeType.Adjacent -> Color(0xFF9CC3FF)
+                    GenreMapNodeType.Locked -> Color(0xFFCBD5E1)
+                }
+            )
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = if (node.type == GenreMapNodeType.Locked) "?" else node.label.initials(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = if (node.type == GenreMapNodeType.Activated) {
+                        Color(0xFF0058BC)
+                    } else {
+                        Color(0xFF64748B)
+                    }
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = node.label,
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color.White.copy(alpha = 0.82f))
+                .padding(horizontal = 8.dp, vertical = 3.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = if (node.type == GenreMapNodeType.Activated) Color(0xFF181C23) else Color(0xFF64748B)
+        )
+    }
+}
+
+private fun String.initials(): String {
+    return split(" ", "-")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+        .ifBlank { take(2).uppercase() }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MapCanvas(
+    nodes: List<GenreMapNodeUi>,
+    edges: List<GenreMapEdgeUi>,
+    selectedNodeId: String?,
+    selectedEdge: GenreMapEdgeUi?,
+    onNodeSelected: (GenreMapNodeUi) -> Unit,
+    onEdgeSelected: (GenreMapEdgeUi) -> Unit,
+) {
+    val density = LocalDensity.current
+    val nodeDiameter = 74.dp
+    val edgeChipWidth = 102.dp
+    val edgeChipHeight = 30.dp
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(430.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(Color(0xFFF4F7FF))
+            .border(1.dp, Color(0xFFC1C6D7).copy(alpha = 0.30f), RoundedCornerShape(28.dp))
+            .padding(16.dp)
+    ) {
+        val widthPx = with(density) { maxWidth.toPx() }
+        val heightPx = with(density) { maxHeight.toPx() }
+        val nodeSizePx = with(density) { nodeDiameter.toPx() }
+        val edgeChipWidthPx = with(density) { edgeChipWidth.toPx() }
+        val edgeChipHeightPx = with(density) { edgeChipHeight.toPx() }
+
+        androidx.compose.foundation.Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            val lookup = nodes.associateBy { it.id }
+            edges.forEach { edge ->
+                val from = lookup[edge.fromId] ?: return@forEach
+                val to = lookup[edge.toId] ?: return@forEach
+                val start = Offset(from.position.x * widthPx, from.position.y * heightPx)
+                val end = Offset(to.position.x * widthPx, to.position.y * heightPx)
+                val lineColor = if (edge.unlocked) Color(0xFF0058BC) else Color(0xFF9CA3AF)
+                drawLine(
+                    color = lineColor.copy(alpha = if (edge == selectedEdge) 0.95f else if (edge.unlocked) 0.72f else 0.40f),
+                    start = start,
+                    end = end,
+                    strokeWidth = if (edge.unlocked) 7f else 5f,
+                    cap = StrokeCap.Round,
+                    pathEffect = if (edge.unlocked) null else PathEffect.dashPathEffect(floatArrayOf(18f, 14f), 0f)
+                )
+                drawCircle(
+                    color = lineColor.copy(alpha = if (edge.unlocked) 0.18f else 0.12f),
+                    radius = if (edge.unlocked) 16f else 12f,
+                    center = Offset((start.x + end.x) / 2f, (start.y + end.y) / 2f)
+                )
+            }
+        }
+
+        edges.forEach { edge ->
+            val from = nodes.firstOrNull { it.id == edge.fromId } ?: return@forEach
+            val to = nodes.firstOrNull { it.id == edge.toId } ?: return@forEach
+            val midpoint = Offset(
+                x = (from.position.x + to.position.x) / 2f * widthPx,
+                y = (from.position.y + to.position.y) / 2f * heightPx
+            )
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = (midpoint.x - edgeChipWidthPx / 2f).roundToInt(),
+                            y = (midpoint.y - edgeChipHeightPx / 2f).roundToInt()
+                        )
+                    }
+                    .size(edgeChipWidth, edgeChipHeight)
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(if (edge.unlocked) Color(0xFFDCEBFF) else Color(0xFFE8EAF6))
+                    .border(
+                        width = 1.dp,
+                        color = if (edge.unlocked) Color(0xFF0058BC) else Color(0xFFC1C6D7),
+                        shape = RoundedCornerShape(999.dp)
+                    )
+                    .combinedClickable(
+                        onClick = { onEdgeSelected(edge) },
+                        onLongClick = { onEdgeSelected(edge) },
+                        role = Role.Button,
+                        onClickLabel = "연결 근거 확인"
+                    )
+                    .semantics {
+                        contentDescription = "${edge.label}, ${edge.evidence}"
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Link,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = if (edge.unlocked) Color(0xFF0058BC) else Color(0xFF6B7280)
+                    )
+                    Text(
+                        text = edge.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (edge.unlocked) Color(0xFF0058BC) else Color(0xFF4B5563)
+                    )
+                }
+            }
+        }
+
+        nodes.forEach { node ->
+            val isSelected = selectedNodeId == node.id
+            val scale by animateFloatAsState(
+                targetValue = if (isSelected) 1.08f else 1f,
+                label = "genreNodeScale"
+            )
+            val x = node.position.x * widthPx - nodeSizePx / 2f
+            val y = node.position.y * heightPx - nodeSizePx / 2f
+            val backgroundColor = when (node.type) {
+                GenreMapNodeType.Activated -> Color(0xFF0058BC)
+                GenreMapNodeType.Adjacent -> Color.White
+                GenreMapNodeType.Locked -> Color(0xFFF1F3FE)
+            }
+            val borderColor = when (node.type) {
+                GenreMapNodeType.Activated -> Color(0xFF0058BC)
+                GenreMapNodeType.Adjacent -> Color(0xFF9CC3FF)
+                GenreMapNodeType.Locked -> Color(0xFFC1C6D7)
+            }
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x.roundToInt(), y.roundToInt()) }
+                    .size(nodeDiameter)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
+                    .clip(CircleShape)
+                    .background(backgroundColor)
+                    .border(
+                        width = if (isSelected) 2.dp else 1.dp,
+                        color = borderColor,
+                        shape = CircleShape
+                    )
+                    .combinedClickable(
+                        onClick = { onNodeSelected(node) },
+                        onLongClick = { onNodeSelected(node) },
+                        role = Role.Button,
+                        onClickLabel = "${node.label} 열기",
+                        onLongClickLabel = "${node.label} 세부 정보"
+                    )
+                    .semantics {
+                        contentDescription = node.accessibilityLabel
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = when (node.type) {
+                            GenreMapNodeType.Activated -> Icons.Default.CheckCircle
+                            GenreMapNodeType.Adjacent -> Icons.Default.Link
+                            GenreMapNodeType.Locked -> Icons.Default.Lock
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = when (node.type) {
+                            GenreMapNodeType.Activated -> Color.White
+                            GenreMapNodeType.Adjacent -> Color(0xFF0058BC)
+                            GenreMapNodeType.Locked -> Color(0xFF6B7280)
+                        }
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = node.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = when (node.type) {
+                            GenreMapNodeType.Activated -> Color.White
+                            GenreMapNodeType.Adjacent -> Color(0xFF181C23)
+                            GenreMapNodeType.Locked -> Color(0xFF414755)
+                        }
+                    )
+                }
+            }
+
+            val badgeY = y + nodeSizePx + with(density) { 8.dp.toPx() }
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = (node.position.x * widthPx - 32).roundToInt(),
+                            y = badgeY.roundToInt()
+                        )
+                    }
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(
+                        when (node.type) {
+                            GenreMapNodeType.Activated -> Color(0xFFDCEBFF)
+                            GenreMapNodeType.Adjacent -> Color(0xFFEEF4FF)
+                            GenreMapNodeType.Locked -> Color(0xFFE8EAF6)
+                        }
+                    )
+                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            ) {
+                Text(
+                    text = node.note,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = when (node.type) {
+                        GenreMapNodeType.Activated -> Color(0xFF0058BC)
+                        GenreMapNodeType.Adjacent -> Color(0xFF1D4ED8)
+                        GenreMapNodeType.Locked -> Color(0xFF6B7280)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LegendRow() {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        GenreChip(genre = "활성", isPrimary = true)
+        GenreChip(genre = "인접", isSelected = true)
+        GenreChip(genre = "잠금")
+    }
+}
+
+@Composable
+private fun MapMetric(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF9CA3AF)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF181C23)
+        )
+    }
+}
+
+@Composable
+private fun RecentAlbumRow(album: DummyArchive) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = album.title,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF181C23)
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${album.artist} · ${album.date}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF6B7280)
+            )
+        }
+        album.genres.firstOrNull { it.isNotBlank() }?.let { genre ->
+            GenreChip(genre = genre)
+        }
+    }
+}
+
+@Composable
+private fun NodeFacts(
+    saveCount: Int,
+    lastActivatedText: String,
+    typeLabel: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        MiniFactChip(label = "저장", value = "${saveCount}회")
+        MiniFactChip(label = "최근 진입", value = lastActivatedText)
+        MiniFactChip(label = "상태", value = typeLabel)
+    }
+}
+
+@Composable
+private fun MiniFactChip(
+    label: String,
+    value: String,
+) {
+    Surface(
+        color = Color(0xFFF1F3FE),
+        shape = RoundedCornerShape(14.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF6B7280)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF181C23)
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 390, heightDp = 844)
+@Composable
+private fun GenreMapScreenPreview() {
+    VinfoTheme {
+        GenreMapScreen()
+    }
+}
