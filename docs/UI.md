@@ -107,7 +107,7 @@ Bottom Navigation:
 | Archive Detail | 저장된 상세 재확인 | Track Detail 레이아웃 재사용 |
 | Taste Map (New) | 취향 인접 지도 탐험 | 노드 그래프, 검수된 연결선, 활성/인접 상태 |
 | Genre Stats | 장르 비율/변화 분석 | 도넛, KPI, 기간별 차트 |
-| Settings | 권한/키/테마/데이터 관리 | 카드형 섹션, 위험 액션 구분 |
+| Settings | 권한/Gemini 키/테마/데이터 관리 | 카드형 섹션, 위험 액션 구분 |
 
 ---
 
@@ -219,8 +219,9 @@ Bottom Navigation:
 - Insight Hub 내 보조 탭으로 운영
 
 ### 7.5 Settings
-- 순서: 권한 -> API 키 -> 테마 -> 데이터 관리
-- API 키: 마스킹/유효성/저장 피드백
+- 순서: 권한 -> Gemini API 키 -> 테마 -> 데이터 관리
+- API 키: Gemini API Key만 입력받고 Perplexity 키 입력은 표시하지 않음
+- 권한 상태: 동작하지 않는 앱 알림 토글을 표시하지 않고, 음악 알림 감지 목적만 안내
 - 위험 동작은 에러 컬러로 분리
 
 ---

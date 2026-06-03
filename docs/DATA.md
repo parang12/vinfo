@@ -539,7 +539,7 @@ sealed interface AppResult<out T> {
 - `.gitignore`에 `local.properties`를 반드시 포함한다.
 - Release 빌드에는 개발자 개인 키를 포함하지 않는다.
 - 공개 배포 전에는 클라이언트에서 Key를 직접 보유하지 않도록 서버 프록시 구조로 전환한다.
-- `SettingsScreen`의 API Key 입력 UI는 기본 마스킹, 보기/숨기기 토글, 저장 시 유효성 검사, 저장 성공/실패 피드백을 제공한다.
+- `SettingsScreen`의 API Key 입력 UI는 현재 런타임에서 사용하는 Gemini API Key만 표시한다. Perplexity 키 입력은 레거시 저장소 함수가 남아 있어도 설정 화면에 노출하지 않는다.
 
 ### 8.3 보안 및 난독화
 
@@ -584,7 +584,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 | `ArchiveListScreen` | 저장된 곡 목록 조회, 검색, 장르 필터 |
 | `ArchiveDetailScreen` | 저장된 단일 아카이브 상세 조회 |
 | `GenreStatsScreen` | 장르별 청취 통계 시각화 |
-| `SettingsScreen` | 권한 상태, API 설정, 앱 정보 |
+| `SettingsScreen` | 권한 상태, Gemini API 설정, 앱 정보 |
 
 ### 10.2 Navigation Graph
 

@@ -25,8 +25,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -57,10 +55,8 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val apiKeyStore = remember(context) { ApiKeyStore(context.applicationContext) }
-    var perplexityKey by remember { mutableStateOf(apiKeyStore.getPerplexityApiKey()) }
     var geminiKey by remember { mutableStateOf(apiKeyStore.getGeminiApiKey()) }
     var selectedTheme by remember { mutableIntStateOf(0) }
-    var permissionEnabled by remember { mutableStateOf(true) }
 
     val themeOptions = listOf("라이트 모드", "다크 모드", "시스템 기본값")
 
@@ -84,36 +80,20 @@ fun SettingsScreen(
             }
             item {
                 SettingsCard {
-                    Row(
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = "알림 접근 권한",
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF181C23)
-                            )
-                            Text(
-                                text = "새로운 음악 발매 소식을 받으려면 권한이 필요합니다.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF414755)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Switch(
-                            checked = permissionEnabled,
-                            onCheckedChange = { permissionEnabled = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = Color(0xFF0058BC),
-                                uncheckedThumbColor = Color.White,
-                                uncheckedTrackColor = Color(0xFFD1D5DB)
-                            )
+                        Text(
+                            text = "알림 접근 권한",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF181C23)
+                        )
+                        Text(
+                            text = "재생 중인 음악 알림을 읽어 아티스트와 곡 정보를 감지합니다.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF414755)
                         )
                     }
                 }
@@ -125,21 +105,6 @@ fun SettingsScreen(
             }
             item {
                 SettingsCard {
-                    SettingsInputItem(
-                        label = "Perplexity API Key",
-                        value = perplexityKey,
-                        onValueChange = { perplexityKey = it },
-                        placeholder = "sk-..."
-                    )
-                    Text(
-                        text = "음악 정보 검색에 사용됩니다.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF9CA3AF),
-                        modifier = Modifier.padding(top = 6.dp, bottom = 4.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     SettingsInputItem(
                         label = "Gemini API Key",
                         value = geminiKey,
@@ -161,7 +126,6 @@ fun SettingsScreen(
                     ) {
                         Button(
                             onClick = {
-                                apiKeyStore.savePerplexityApiKey(perplexityKey)
                                 apiKeyStore.saveGeminiApiKey(geminiKey)
                             },
                             modifier = Modifier.height(46.dp),
