@@ -221,6 +221,7 @@ Bottom Navigation:
 ### 7.5 Settings
 - 순서: 권한 -> Gemini API 키 -> 테마 -> 데이터 관리
 - API 키: Gemini API Key만 입력받고 Perplexity 키 입력은 표시하지 않음
+- 저장: 저장 버튼을 누르면 저장 성공/실패 메시지를 API 카드 안에 표시
 - 권한 상태: 동작하지 않는 앱 알림 토글을 표시하지 않고, 음악 알림 감지 목적만 안내
 - 위험 동작은 에러 컬러로 분리
 

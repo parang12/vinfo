@@ -56,6 +56,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     val apiKeyStore = remember(context) { ApiKeyStore(context.applicationContext) }
     var geminiKey by remember { mutableStateOf(apiKeyStore.getGeminiApiKey()) }
+    var apiKeySaveMessage by remember { mutableStateOf<String?>(null) }
+    var apiKeySaveMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
     var selectedTheme by remember { mutableIntStateOf(0) }
 
     val themeOptions = listOf("라이트 모드", "다크 모드", "시스템 기본값")
@@ -126,7 +128,23 @@ fun SettingsScreen(
                     ) {
                         Button(
                             onClick = {
-                                apiKeyStore.saveGeminiApiKey(geminiKey)
+                                val trimmedKey = geminiKey.trim()
+                                if (trimmedKey.isBlank()) {
+                                    apiKeySaveMessage = "Gemini API Key를 입력해 주세요."
+                                    apiKeySaveMessageColor = Color(0xFFBA1A1A)
+                                    return@Button
+                                }
+
+                                val saved = apiKeyStore.saveGeminiApiKey(trimmedKey)
+                                val persistedKey = apiKeyStore.getGeminiApiKey()
+                                val verified = saved && persistedKey == trimmedKey
+                                geminiKey = persistedKey
+                                apiKeySaveMessage = if (verified) {
+                                    "Gemini API Key가 저장되었습니다."
+                                } else {
+                                    "Gemini API Key 저장을 확인하지 못했습니다. 다시 시도해 주세요."
+                                }
+                                apiKeySaveMessageColor = if (verified) Color(0xFF007A3D) else Color(0xFFBA1A1A)
                             },
                             modifier = Modifier.height(46.dp),
                             shape = RoundedCornerShape(14.dp),
@@ -138,6 +156,16 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                    }
+
+                    apiKeySaveMessage?.let { message ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = apiKeySaveMessageColor,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(20.dp))

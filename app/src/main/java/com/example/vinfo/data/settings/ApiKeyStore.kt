@@ -10,8 +10,8 @@ class ApiKeyStore(context: Context) {
         sharedPreferences.edit().putString(KEY_PERPLEXITY, apiKey.trim()).apply()
     }
 
-    fun saveGeminiApiKey(apiKey: String) {
-        sharedPreferences.edit().putString(KEY_GEMINI, apiKey.trim()).apply()
+    fun saveGeminiApiKey(apiKey: String): Boolean {
+        return sharedPreferences.edit().putString(KEY_GEMINI, apiKey.trim()).commit()
     }
 
     fun getPerplexityApiKey(): String {
