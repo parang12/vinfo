@@ -95,8 +95,9 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 ### 3.5 [Feature 5] Preference Visualization (Charts)
 * **Description:** 저장된 장르 데이터를 분석하여 사용자 취향 통계를 생성한다.
 * **UI Components:**
-    * `Genre Pie Chart`: 전체 장르 분포.
-    * `Weekly Trend Bar Chart`: 주간 음악 소비량 추이.
+    * `Genre Distribution`: 전체 보관함 기준 장르 분포.
+    * `Archive KPI`: 총 보관 앨범 수와 최다 장르.
+    * 기간별 변화 차트는 실제 timestamp 기반 집계가 추가된 뒤 후속으로 연결한다.
 
 ### 3.6 [Feature 6] Taste Exploration Map (Genre Adjacency Map)
 * **Description:** 사용자의 저장 기록을 기반으로 장르를 독립 카테고리가 아닌 연결된 공간으로 표현하고, 취향의 인접 영역 및 확장 가능성을 시각화한다.

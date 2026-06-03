@@ -57,6 +57,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.vinfo.domain.model.buildTrackId
 import com.example.vinfo.ui.archive.ArchiveListScreen
 import com.example.vinfo.ui.archive.ArchiveViewModel
 import com.example.vinfo.ui.detail.DetailScreen
@@ -65,7 +66,6 @@ import com.example.vinfo.ui.nowplaying.NowPlayingScreen
 import com.example.vinfo.ui.nowplaying.NowPlayingViewModel
 import com.example.vinfo.ui.settings.SettingsScreen
 import com.example.vinfo.ui.permission.isNotificationListenerEnabled
-import com.example.vinfo.ui.permission.openNotificationListenerSettings
 import com.example.vinfo.ui.permission.openAppNotificationSettings
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
@@ -76,6 +76,7 @@ import com.example.vinfo.ui.stats.GenreMapViewModel
 import com.example.vinfo.ui.theme.VinfoPrimary
 import com.example.vinfo.ui.theme.VinfoTheme
 import kotlinx.coroutines.flow.collectLatest
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,11 +130,7 @@ fun MainScreen(
     val archiveViewModel: ArchiveViewModel = viewModel()
     val nowPlayingViewModel: NowPlayingViewModel = viewModel()
     val nowPlayingState by nowPlayingViewModel.uiState.collectAsState()
-    
-    // 최초 실행 시 더미 데이터 삽입
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        archiveViewModel.initDummyData()
-    }
+    val archiveList by archiveViewModel.archiveList.collectAsState()
 
     androidx.compose.runtime.LaunchedEffect(nowPlayingViewModel) {
         nowPlayingViewModel.navigationEvents.collect { trackId ->
@@ -214,7 +211,8 @@ fun MainScreen(
                     isLoading = nowPlayingState.isLoading,
                     isCatchNowEnabled = !nowPlayingState.isLoading && !nowPlayingState.isLyricsLoading,
                     statusMessage = nowPlayingState.statusMessage,
-                    currentTrack = nowPlayingState.currentTrack
+                    currentTrack = nowPlayingState.currentTrack,
+                    recentArchiveItems = archiveList.take(2)
                 )
             }
             composable(
@@ -229,21 +227,44 @@ fun MainScreen(
             ) { backStackEntry ->
                 val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
                 val albumArtUrl = backStackEntry.arguments?.getString("albumArtUrl")
+                var archivedAlbum by remember(trackId) { mutableStateOf<com.example.vinfo.data.local.entity.AlbumEntity?>(null) }
+                val currentTrackId = nowPlayingState.trackMetadata?.let { buildTrackId(it.artist, it.title) }
+                val isCurrentCatchNowDetail = currentTrackId == trackId
+
+                androidx.compose.runtime.LaunchedEffect(trackId, currentTrackId) {
+                    archivedAlbum = if (trackId.isNotBlank() && !isCurrentCatchNowDetail) {
+                        archiveViewModel.getAlbumById(trackId)
+                    } else {
+                        null
+                    }
+                }
+
+                val detailTrack = if (isCurrentCatchNowDetail) {
+                    nowPlayingState.currentTrack
+                } else {
+                    archivedAlbum?.toNowPlayingTrack()
+                }
+                val detailMetadata = if (isCurrentCatchNowDetail) {
+                    nowPlayingState.trackMetadata
+                } else {
+                    archivedAlbum?.toTrackMetadata()
+                }
+
                 DetailScreen(
                     trackId = trackId,
                     albumArtUrl = albumArtUrl,
-                    currentTrack = nowPlayingState.currentTrack,
-                    trackMetadata = nowPlayingState.trackMetadata,
-                    originalLyrics = nowPlayingState.originalLyrics,
-                    isLyricsLoading = nowPlayingState.isLyricsLoading,
-                    lyricsErrorMessage = nowPlayingState.lyricsErrorMessage,
+                    currentTrack = detailTrack,
+                    trackMetadata = detailMetadata,
+                    originalLyrics = if (isCurrentCatchNowDetail) nowPlayingState.originalLyrics else null,
+                    isLyricsLoading = if (isCurrentCatchNowDetail) nowPlayingState.isLyricsLoading else false,
+                    lyricsErrorMessage = if (isCurrentCatchNowDetail) nowPlayingState.lyricsErrorMessage else null,
                     onBackClick = { navController.popBackStack() },
                     onSettingsClick = { navController.navigate(Route.Settings.path) },
                     onAddToArchiveClick = {
                         archiveViewModel.saveCurrentTrack(
                             trackId = trackId,
-                            currentTrack = nowPlayingState.currentTrack,
-                            trackMetadata = nowPlayingState.trackMetadata
+                            currentTrack = detailTrack,
+                            trackMetadata = detailMetadata
                         )
                     }
                 )
@@ -262,7 +283,6 @@ fun MainScreen(
                 )
             }
             composable(Route.GenreStats.path) {
-                val archiveList by archiveViewModel.archiveList.collectAsState()
                 val genreMapViewModel: GenreMapViewModel = viewModel()
                 val discoveryState by genreMapViewModel.discoveryState.collectAsState()
                 GenreMapScreen(
@@ -279,7 +299,16 @@ fun MainScreen(
                 SettingsScreen(
                     onBackClick = { navController.popBackStack() },
                     themeMode = themeMode,
-                    onThemeModeChange = onThemeModeChange
+                    onThemeModeChange = onThemeModeChange,
+                    onClearAlbumArtCache = {
+                        val cacheDir = File(ctx.filesDir, "album_art")
+                        if (!cacheDir.exists() || cacheDir.deleteRecursively()) {
+                            "앨범 커버 캐시를 삭제했습니다."
+                        } else {
+                            "앨범 커버 캐시를 완전히 삭제하지 못했습니다."
+                        }
+                    },
+                    onClearArchive = archiveViewModel::clearArchive
                 )
             }
         }

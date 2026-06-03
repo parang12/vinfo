@@ -42,14 +42,9 @@ fun NowPlayingScreen(
     isLoading: Boolean = false,
     isCatchNowEnabled: Boolean = true,
     statusMessage: String? = null,
-    currentTrack: NowPlayingTrack? = null
+    currentTrack: NowPlayingTrack? = null,
+    recentArchiveItems: List<DummyArchive> = emptyList()
 ) {
-    // 보관함에서 가져온 최근 2개 항목 (DummyArchive 재사용)
-    val recentArchiveItems = listOf(
-        DummyArchive("1", "Midnight City", "M83", listOf("Synth-pop", "Indie"), "2024.03.15"),
-        DummyArchive("2", "Instant Crush", "Daft Punk ft. Julian Casablancas", listOf("Electronic", "Pop"), "2024.03.12")
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -217,6 +212,22 @@ fun NowPlayingScreen(
             // 보관함 스타일 카드 2개
             if (isLoading) {
                 items(2) { SkeletonRecentCard() }
+            } else if (recentArchiveItems.isEmpty()) {
+                item {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color.White,
+                        shadowElevation = 1.dp
+                    ) {
+                        Text(
+                            text = "아직 저장된 앨범이 없습니다.",
+                            modifier = Modifier.padding(20.dp),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                }
             } else {
                 items(recentArchiveItems.size) { index ->
                     val item = recentArchiveItems[index]

@@ -174,6 +174,8 @@ fun ArchiveListScreen(
                             } else {
                                 selectedIds + track.id
                             }
+                        } else {
+                            onTrackClick(track.id)
                         }
                     },
                     onLongClick = {

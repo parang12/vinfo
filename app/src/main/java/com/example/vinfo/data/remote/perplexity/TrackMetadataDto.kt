@@ -1,11 +1,14 @@
 package com.example.vinfo.data.remote.perplexity
 
+import com.example.vinfo.domain.model.AlbumGenreCandidate
+
 data class TrackMetadataDto(
     val artist: String,
     val title: String,
     val album: String?,
     val primaryGenre: String,
     val secondaryGenre: String?,
+    val genreCandidates: List<AlbumGenreCandidate> = emptyList(),
     val genreSource: String?,
     val rymRating: Float?,
     val pitchforkScore: Float?,

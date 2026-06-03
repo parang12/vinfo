@@ -1,7 +1,6 @@
 package com.example.vinfo.ui.stats
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,9 +29,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.vinfo.ui.archive.ArchiveViewModel
 import androidx.compose.ui.Alignment
@@ -48,11 +44,6 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import com.example.vinfo.ui.component.FloatingSettingsButton
 import com.example.vinfo.ui.component.VinfoCard
 import com.example.vinfo.ui.theme.VinfoTheme
-import com.patrykandpatrick.vico.compose.axis.horizontal.rememberBottomAxis
-import com.patrykandpatrick.vico.compose.axis.vertical.rememberStartAxis
-import com.patrykandpatrick.vico.compose.chart.Chart
-import com.patrykandpatrick.vico.compose.chart.column.columnChart
-import com.patrykandpatrick.vico.core.entry.entryModelOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,9 +52,6 @@ fun GenreStatsScreen(
     onSettingsClick: () -> Unit = {},
     archiveViewModel: ArchiveViewModel = viewModel()
 ) {
-    var selectedPeriod by remember { mutableIntStateOf(2) }
-    val periods = listOf("30d", "90d", "1y")
-
     // 보관함 데이터 구독
     val archiveList by archiveViewModel.archiveList.collectAsState()
     val genreDistribution = archiveViewModel.genreDistribution(archiveList)
@@ -102,39 +90,6 @@ fun GenreStatsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color(0xFF6B7280)
                     )
-                }
-            }
-
-            // 기간 선택 세그먼트
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .background(Color(0xFFE8EAF6), RoundedCornerShape(22.dp))
-                        .padding(4.dp)
-                ) {
-                    periods.forEachIndexed { index, title ->
-                        val selected = selectedPeriod == index
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(
-                                    if (selected) Color(0xFF0058BC) else Color.Transparent
-                                )
-                                .clickable { selectedPeriod = index },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selected) Color.White else Color(0xFF6B7280)
-                            )
-                        }
-                    }
                 }
             }
 
@@ -277,11 +232,11 @@ fun GenreStatsScreen(
                 }
             }
 
-            // KPI 카드 - 전체 앙범 수
+            // KPI 카드 - 전체 앨범 수
             item {
                 VinfoCard {
                     Text(
-                        text = "전체 보관 앙범",
+                        text = "전체 보관 앨범",
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF6B7280)
                     )
@@ -292,12 +247,6 @@ fun GenreStatsScreen(
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF181C23)
-                        )
-                        Text(
-                            text = " / 5.0",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF6B7280),
-                            modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
@@ -327,66 +276,6 @@ fun GenreStatsScreen(
                                 .padding(top = 4.dp),
                             tint = Color(0xFFD97706).copy(alpha = 0.18f)
                         )
-                    }
-                }
-            }
-
-            // 주간 막대 차트 카드
-            item {
-                VinfoCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "장르 분포",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF181C23)
-                        )
-                        Surface(
-                            color = Color(0xFFEEF4FF),
-                            shape = RoundedCornerShape(999.dp)
-                        ) {
-                            Text(
-                                text = "청취 시간",
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF0058BC)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    Chart(
-                        chart = columnChart(),
-                        model = entryModelOf(4, 5, 3, 6, 7, 5, 8),
-                        startAxis = rememberStartAxis(),
-                        bottomAxis = rememberBottomAxis(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                    )
-
-                    HorizontalDivider(
-                        modifier = Modifier.padding(top = 12.dp, bottom = 8.dp),
-                        color = Color(0xFFC1C6D7).copy(alpha = 0.35f)
-                    )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        listOf("월", "화", "수", "목", "금", "토", "일").forEach { day ->
-                            Text(
-                                text = day,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF6B7280)
-                            )
-                        }
                     }
                 }
             }

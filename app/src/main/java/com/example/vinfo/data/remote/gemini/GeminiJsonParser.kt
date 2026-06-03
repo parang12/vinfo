@@ -1,6 +1,8 @@
 package com.example.vinfo.data.remote.gemini
 
 import com.example.vinfo.domain.model.AppResult
+import com.example.vinfo.domain.model.AlbumGenreCandidate
+import com.example.vinfo.domain.model.GenreCandidateTier
 import org.json.JSONObject
 
 class GeminiJsonParser {
@@ -74,12 +76,23 @@ class GeminiJsonParser {
     }
 
     private fun JSONObject.toTrackMetadataDto(): com.example.vinfo.data.remote.perplexity.TrackMetadataDto {
+        val genreCandidates = buildList {
+            addAll(optGenreCandidates("primary_genres", GenreCandidateTier.PRIMARY))
+            addAll(optGenreCandidates("secondary_genres", GenreCandidateTier.SECONDARY))
+            addAll(optGenreCandidates("microgenres", GenreCandidateTier.MICRO))
+        }
+        val primaryGenre = genreCandidates.firstOrNull { it.tier == GenreCandidateTier.PRIMARY }?.name
+            ?: optString("primary_genre").trim()
+        val secondaryGenre = genreCandidates.firstOrNull { it.tier == GenreCandidateTier.SECONDARY }?.name
+            ?: optNullableString("secondary_genre")
+
         return com.example.vinfo.data.remote.perplexity.TrackMetadataDto(
             artist = optString("artist").trim(),
             title = optString("title").trim(),
             album = optNullableString("album"),
-            primaryGenre = optString("primary_genre").trim(),
-            secondaryGenre = optNullableString("secondary_genre"),
+            primaryGenre = primaryGenre,
+            secondaryGenre = secondaryGenre,
+            genreCandidates = genreCandidates,
             genreSource = optNullableString("genre_source"),
             rymRating = optNullableFloat("rym_rating"),
             pitchforkScore = optNullableFloat("pitchfork_score"),
@@ -92,6 +105,34 @@ class GeminiJsonParser {
             missingSources = optStringList("missing_sources", "missingSources"),
             reliabilityNotes = optStringList("reliability_notes", "reliabilityNotes")
         )
+    }
+
+    private fun JSONObject.optGenreCandidates(
+        key: String,
+        tier: GenreCandidateTier
+    ): List<AlbumGenreCandidate> {
+        val array = optJSONArray(key) ?: return emptyList()
+        return buildList {
+            for (index in 0 until array.length()) {
+                val item = array.optJSONObject(index)
+                val name = when {
+                    item != null -> item.optString("name").trim()
+                    else -> array.optString(index).trim()
+                }
+                if (name.isBlank()) continue
+                add(
+                    AlbumGenreCandidate(
+                        name = name,
+                        confidence = item?.optDouble("confidence", 1.0)?.toFloat()?.coerceIn(0f, 1f) ?: 1f,
+                        tier = tier,
+                        evidenceText = item
+                            ?.optString("evidence_text")
+                            ?.trim()
+                            ?.takeIf { it.isNotBlank() }
+                    )
+                )
+            }
+        }
     }
 
     private fun JSONObject.optNullableString(key: String): String? {

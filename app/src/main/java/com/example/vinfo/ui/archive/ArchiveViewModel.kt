@@ -35,26 +35,17 @@ class ArchiveViewModel(application: Application) : AndroidViewModel(application)
             initialValue = emptyList()
         )
 
-    /** 초기 데이터 삽입 (최초 1회 실행용) */
-    fun initDummyData() {
-        viewModelScope.launch {
-            val current = archiveList.value
-            if (current.isEmpty()) {
-                val dummy = listOf(
-                    DummyArchive("1", "Midnight Vultures", "Beck", listOf("Funk", "Alt"), "2024.03.15"),
-                    DummyArchive("2", "Selected Ambient Works", "Aphex Twin", listOf("Ambient", "Electronic"), "2024.03.12"),
-                    DummyArchive("3", "Kind of Blue", "Miles Davis", listOf("Jazz", "Classic"), "2024.03.10"),
-                    DummyArchive("4", "Discovery", "Daft Punk", listOf("Electronic", "House"), "2024.03.05")
-                )
-                dummy.forEach { addItem(it) }
-            }
-        }
-    }
-
     /** 항목 삭제 */
     fun deleteItems(ids: Set<String>) {
         viewModelScope.launch {
             albumDao.deleteAlbums(ids.toList())
+        }
+    }
+
+    fun clearArchive() {
+        viewModelScope.launch {
+            albumDao.deleteAllAlbums()
+            _saveEvents.tryEmit("보관함 기록을 초기화했습니다.")
         }
     }
 
@@ -82,6 +73,10 @@ class ArchiveViewModel(application: Application) : AndroidViewModel(application)
             )
             _saveEvents.tryEmit("보관함에 저장했습니다.")
         }
+    }
+
+    suspend fun getAlbumById(id: String): AlbumEntity? {
+        return albumDao.getAlbumById(id)
     }
 
     // ─── 통계 계산 프로퍼티 ───────────────────────────────────────────

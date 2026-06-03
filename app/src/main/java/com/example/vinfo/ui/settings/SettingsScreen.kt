@@ -54,7 +54,9 @@ import com.example.vinfo.ui.theme.VinfoTheme
 fun SettingsScreen(
     onBackClick: () -> Unit,
     themeMode: ThemeMode = ThemeMode.SYSTEM,
-    onThemeModeChange: (ThemeMode) -> Boolean = { true }
+    onThemeModeChange: (ThemeMode) -> Boolean = { true },
+    onClearAlbumArtCache: () -> String = { "앨범 커버 캐시를 삭제했습니다." },
+    onClearArchive: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val apiKeyStore = remember(context) { ApiKeyStore(context.applicationContext) }
@@ -63,6 +65,8 @@ fun SettingsScreen(
     var apiKeySaveMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
     var themeSaveMessage by remember { mutableStateOf<String?>(null) }
     var themeSaveMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
+    var dataActionMessage by remember { mutableStateOf<String?>(null) }
+    var dataActionMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
 
     val themeOptions = listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)
 
@@ -241,7 +245,13 @@ fun SettingsScreen(
             }
             item {
                 SettingsCard {
-                    SettingsActionRow(title = "캐시 삭제", onClick = {})
+                    SettingsActionRow(
+                        title = "앨범 커버 캐시 삭제",
+                        onClick = {
+                            dataActionMessage = onClearAlbumArtCache()
+                            dataActionMessageColor = Color(0xFF007A3D)
+                        }
+                    )
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 2.dp),
                         color = Color(0xFFC1C6D7).copy(alpha = 0.4f)
@@ -249,8 +259,22 @@ fun SettingsScreen(
                     SettingsActionRow(
                         title = "저장 기록 초기화",
                         titleColor = Color(0xFFBA1A1A),
-                        onClick = {}
+                        onClick = {
+                            onClearArchive()
+                            dataActionMessage = "보관함 기록을 초기화했습니다."
+                            dataActionMessageColor = Color(0xFFBA1A1A)
+                        }
                     )
+
+                    dataActionMessage?.let { message ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = dataActionMessageColor,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(32.dp))
             }

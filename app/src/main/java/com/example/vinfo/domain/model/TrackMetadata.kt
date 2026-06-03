@@ -6,6 +6,7 @@ data class TrackMetadata(
     val album: String?,
     val primaryGenre: GenreCategory,
     val secondaryGenre: GenreCategory?,
+    val genreCandidates: List<AlbumGenreCandidate> = emptyList(),
     val genreSource: GenreSource,
     val rymRating: Float?,
     val pitchforkScore: Float?,
@@ -18,6 +19,19 @@ data class TrackMetadata(
     val missingSources: List<String>,
     val reliabilityNotes: List<String>
 )
+
+data class AlbumGenreCandidate(
+    val name: String,
+    val confidence: Float,
+    val tier: GenreCandidateTier,
+    val evidenceText: String? = null
+)
+
+enum class GenreCandidateTier {
+    PRIMARY,
+    SECONDARY,
+    MICRO
+}
 
 enum class GenreCategory {
     HIP_HOP,

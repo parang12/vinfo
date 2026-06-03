@@ -3,7 +3,11 @@ package com.example.vinfo.data.local.entity
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.vinfo.domain.model.AlbumGenreCandidate
 import com.example.vinfo.domain.model.GenreCategory
+import com.example.vinfo.domain.model.GenreCandidateTier
+import com.example.vinfo.domain.model.GenreMapper
+import com.example.vinfo.domain.model.GenreSource
 import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.domain.model.TrackMetadata
 import com.example.vinfo.ui.archive.DummyArchive
@@ -22,6 +26,7 @@ data class AlbumEntity(
     val genres: List<String>,
     @ColumnInfo(name = "primary_genre") val primaryGenre: String? = null,
     @ColumnInfo(name = "secondary_genre") val secondaryGenre: String? = null,
+    @ColumnInfo(name = "genre_candidates_json") val genreCandidatesJson: String = "[]",
     @ColumnInfo(name = "genre_source") val genreSource: String? = null,
     @ColumnInfo(name = "rym_rating") val rymRating: Float? = null,
     @ColumnInfo(name = "pitchfork_score") val pitchforkScore: Float? = null,
@@ -72,6 +77,7 @@ data class AlbumEntity(
                 genres = genres.ifEmpty { listOf("Unknown") },
                 primaryGenre = primaryGenre,
                 secondaryGenre = secondaryGenre,
+                genreCandidatesJson = buildGenreCandidatesJson(metadata.genreCandidates),
                 genreSource = metadata.genreSource.name,
                 rymRating = metadata.rymRating,
                 pitchforkScore = metadata.pitchforkScore,
@@ -97,6 +103,18 @@ data class AlbumEntity(
                 .toString()
         }
 
+        private fun buildGenreCandidatesJson(candidates: List<AlbumGenreCandidate>): String {
+            return JSONArray(
+                candidates.map { candidate ->
+                    JSONObject()
+                        .put("name", candidate.name)
+                        .put("confidence", candidate.confidence)
+                        .put("tier", candidate.tier.name)
+                        .put("evidence_text", candidate.evidenceText)
+                }
+            ).toString()
+        }
+
         private fun formatDate(savedAtMillis: Long): String {
             val formatter = SimpleDateFormat("yyyy.MM.dd", Locale.getDefault())
             return formatter.format(Date(savedAtMillis))
@@ -109,6 +127,76 @@ data class AlbumEntity(
         return listOfNotNull(primaryGenre, secondaryGenre)
             .filter { it.isNotBlank() }
             .ifEmpty { listOf("Unknown") }
+    }
+
+    fun toTrackMetadata(): TrackMetadata {
+        val resolvedPrimary = GenreMapper.fromRawGenre(primaryGenre ?: genres.firstOrNull())
+        val resolvedSecondary = secondaryGenre?.let(GenreMapper::fromRawGenre)
+        return TrackMetadata(
+            artist = artist,
+            title = albumTitle,
+            album = album ?: albumTitle,
+            primaryGenre = resolvedPrimary,
+            secondaryGenre = resolvedSecondary,
+            genreCandidates = parseGenreCandidates(),
+            genreSource = runCatching { GenreSource.valueOf(genreSource ?: GenreSource.UNKNOWN.name) }
+                .getOrDefault(GenreSource.UNKNOWN),
+            rymRating = rymRating,
+            pitchforkScore = pitchforkScore,
+            metacriticScore = metacriticScore,
+            aotyScore = aotyScore,
+            criticsSummary = criticsSummary.orEmpty(),
+            interviewSummary = interviewSummary,
+            listeningGuide = listeningGuide.orEmpty(),
+            samplesUsed = parseStringArray(samplesUsedJson),
+            missingSources = parseStringArray(missingSourcesJson),
+            reliabilityNotes = parseStringArray(reliabilityNotesJson)
+        )
+    }
+
+    fun toNowPlayingTrack(): NowPlayingTrack {
+        return NowPlayingTrack(
+            artist = artist,
+            title = albumTitle,
+            album = album ?: albumTitle,
+            sourcePackageName = null,
+            albumArtUrl = null
+        )
+    }
+
+    private fun parseStringArray(rawJson: String): List<String> {
+        return runCatching {
+            val array = JSONArray(rawJson)
+            buildList {
+                for (index in 0 until array.length()) {
+                    array.optString(index).trim().takeIf(String::isNotBlank)?.let(::add)
+                }
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun parseGenreCandidates(): List<AlbumGenreCandidate> {
+        return runCatching {
+            val array = JSONArray(genreCandidatesJson)
+            buildList {
+                for (index in 0 until array.length()) {
+                    val item = array.optJSONObject(index) ?: continue
+                    val name = item.optString("name").trim()
+                    if (name.isBlank()) continue
+                    val tier = runCatching {
+                        GenreCandidateTier.valueOf(item.optString("tier").uppercase(Locale.US))
+                    }.getOrDefault(GenreCandidateTier.PRIMARY)
+                    add(
+                        AlbumGenreCandidate(
+                            name = name,
+                            confidence = item.optDouble("confidence", 0.0).toFloat().coerceIn(0f, 1f),
+                            tier = tier,
+                            evidenceText = item.optString("evidence_text").trim().takeIf { it.isNotBlank() }
+                        )
+                    )
+                }
+            }
+        }.getOrDefault(emptyList())
     }
 }
 

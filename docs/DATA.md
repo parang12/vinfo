@@ -31,6 +31,7 @@ data class TrackMetadata(
     val album: String?,
     val primaryGenre: GenreCategory,
     val secondaryGenre: GenreCategory?,
+    val genreCandidates: List<AlbumGenreCandidate>,
     val genreSource: GenreSource,
     val rymRating: Float?,
     val pitchforkScore: Float?,
@@ -47,7 +48,7 @@ data class TrackMetadata(
 
 ```kotlin
 enum class GenreCategory {
-    HIP_HOP, POP, ROCK, ELECTRONIC, JAZZ, CLASSICAL, RNB, UNKNOWN
+    HIP_HOP, TRAP, POP, ROCK, ELECTRONIC, JAZZ, CLASSICAL, RNB, UNKNOWN
 }
 
 enum class GenreSource {
@@ -555,21 +556,19 @@ sealed interface AppResult<out T> {
 
 - `@Database(version = 1)`부터 시작한다.
 - 컬럼 추가, 테이블 분리, 인덱스 변경 시 버전을 1씩 증가시킨다.
-- `fallbackToDestructiveMigration()`은 디버그 빌드에만 허용하고, 릴리즈 빌드에서는 반드시 `Migration` 객체를 제공한다.
+- `fallbackToDestructiveMigration()`은 사용하지 않는다. 디버그/릴리즈 모두 기존 보관함을 보존하는 `Migration` 객체를 제공한다.
 
 ### 9.2 예시 마이그레이션
 
 ```kotlin
-val MIGRATION_1_2 = object : Migration(1, 2) {
+val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE archive_table ADD COLUMN secondary_genre TEXT")
-        db.execSQL("ALTER TABLE archive_table ADD COLUMN genre_candidates_json TEXT NOT NULL DEFAULT '[]'")
-        db.execSQL("ALTER TABLE archive_table ADD COLUMN genre_source TEXT NOT NULL DEFAULT 'UNKNOWN'")
-        db.execSQL("ALTER TABLE archive_table ADD COLUMN interview_summary TEXT")
-        db.execSQL("ALTER TABLE archive_table ADD COLUMN samples_used_json TEXT NOT NULL DEFAULT '[]'")
+        db.execSQL("ALTER TABLE albums ADD COLUMN genre_candidates_json TEXT NOT NULL DEFAULT '[]'")
     }
 }
 ```
+
+현재 구현은 `MIGRATION_1_4`, `MIGRATION_2_4`, `MIGRATION_3_4`에서 누락 컬럼만 추가하고, 기존 `title`이 있으면 `album_title`로 승격한다.
 
 ---
 
@@ -581,7 +580,7 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
 |---|---|
 | `NowPlayingScreen` | 현재 감지된 곡 표시, 정보 수집 로딩 상태, 권한 미허용 시 인라인 수동 입력 |
 | `DetailScreen` | 앨범 기준 평론, 장르, 출처별 평점, 원문 가사, 샘플 정보 |
-| `ArchiveListScreen` | 저장된 곡 목록 조회, 검색, 장르 필터 |
+| `ArchiveListScreen` | 저장된 앨범 목록 조회, 검색, 장르 비율 바, 상세 진입, 다중 삭제 |
 | `ArchiveDetailScreen` | 저장된 단일 아카이브 상세 조회 |
 | `GenreStatsScreen` | 장르별 청취 통계 시각화 |
 | `SettingsScreen` | 권한 상태, Gemini API 설정, 앱 정보 |
@@ -613,16 +612,14 @@ sealed class Route(val path: String) {
 ### 11.1 기능 정의
 
 - 저장된 아카이브 데이터를 기반으로 앨범 기준 장르별 감상 수를 집계한다.
-- 기간 필터(전체 / 최근 30일 / 최근 90일)를 제공한다.
-- 차트 항목 터치 시 해당 장르의 아카이브 목록으로 이동할 수 있다.
+- 현재 구현은 전체 보관함 기준 장르 분포와 KPI만 제공한다. 기간 필터와 주간 차트는 실제 timestamp 모델이 정리될 때 후속으로 추가한다.
 - 집계 기준은 식별된 앨범의 정규화된 `primaryGenre`이며 `secondaryGenre`는 상세 화면 설명 보조 정보로만 사용한다.
 
 ### 11.2 구현 방향
 
-- Domain 계층에 `GetGenreStatisticsUseCase(period: StatPeriod)`를 둔다.
-- Data 계층에서 `ArchiveDao.getGenreStatistics(sinceTimestamp: Long)`으로 기간 필터 집계를 수행한다.
-- Archive 목록은 `searchArchives(query)` 및 `filterArchivesByGenres(genres)` DAO 계약을 사용해 검색/필터를 지원한다.
-- UI 계층에서는 Vico 라이브러리 기반 바 차트 또는 파이 차트를 렌더링한다.
+- MVP는 `ArchiveViewModel.genreDistribution()`으로 전체 보관함 장르 비율을 계산한다.
+- Archive 목록은 검색과 누적 프로그레스형 장르 비율 바를 제공한다.
+- 기간별 집계와 Vico 기반 차트는 실제 저장 timestamp 및 집계 DAO가 추가된 뒤 연결한다.
 
 ---
 

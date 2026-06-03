@@ -18,6 +18,9 @@ interface AlbumDao {
     @Query("DELETE FROM albums WHERE id IN (:ids)")
     suspend fun deleteAlbums(ids: List<String>)
 
+    @Query("DELETE FROM albums")
+    suspend fun deleteAllAlbums()
+
     @Query("SELECT * FROM albums WHERE id = :id")
     suspend fun getAlbumById(id: String): AlbumEntity?
 }

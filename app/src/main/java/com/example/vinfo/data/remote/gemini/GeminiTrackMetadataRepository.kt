@@ -108,6 +108,7 @@ class GeminiTrackMetadataRepository(
             album = album,
             primaryGenre = GenreMapper.fromRawGenre(primaryGenre),
             secondaryGenre = secondaryGenre?.let(GenreMapper::fromRawGenre),
+            genreCandidates = genreCandidates,
             genreSource = GenreMapper.fromRawSource(genreSource),
             rymRating = rymRating,
             pitchforkScore = pitchforkScore,

@@ -1,6 +1,7 @@
 package com.example.vinfo.data.remote.gemini
 
 import com.example.vinfo.domain.model.AppResult
+import com.example.vinfo.domain.model.GenreCandidateTier
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -122,5 +123,60 @@ class GeminiJsonParserTest {
         assertEquals(10f, dto.pitchforkScore!!, 0.001f)
         assertEquals(94, dto.metacriticScore)
         assertEquals(85, dto.aotyScore)
+    }
+
+    @Test
+    fun `parseTrackMetadata reads album genre candidate arrays with confidence`() {
+        val json = """
+            {
+              "artist": "Migos",
+              "title": "T-Shirt",
+              "album": "Culture",
+              "primary_genres": [
+                {
+                  "name": "Trap",
+                  "confidence": 0.94,
+                  "evidence_text": "Culture is commonly categorized as trap at album level."
+                }
+              ],
+              "secondary_genres": [
+                {
+                  "name": "Southern Hip Hop",
+                  "confidence": 0.76
+                }
+              ],
+              "microgenres": [
+                {
+                  "name": "Pop Rap",
+                  "confidence": 0.41
+                }
+              ],
+              "genre_source": "LLM",
+              "rym_rating": null,
+              "pitchfork_score": null,
+              "metacritic_score": null,
+              "aoty_score": null,
+              "critics_summary": "앨범 기준 요약",
+              "interview_summary": null,
+              "listening_guide": "앨범 감상 포인트",
+              "samples_used": [],
+              "missing_sources": [],
+              "reliability_notes": []
+            }
+        """.trimIndent()
+
+        val parser = GeminiJsonParser()
+        val result = parser.parseTrackMetadata(json)
+
+        assertTrue(result is AppResult.Success)
+        val dto = (result as AppResult.Success).data
+        assertEquals("Trap", dto.primaryGenre)
+        assertEquals("Southern Hip Hop", dto.secondaryGenre)
+        assertEquals(3, dto.genreCandidates.size)
+        assertEquals(GenreCandidateTier.PRIMARY, dto.genreCandidates[0].tier)
+        assertEquals(0.94f, dto.genreCandidates[0].confidence, 0.001f)
+        assertEquals("Culture is commonly categorized as trap at album level.", dto.genreCandidates[0].evidenceText)
+        assertEquals(GenreCandidateTier.SECONDARY, dto.genreCandidates[1].tier)
+        assertEquals(GenreCandidateTier.MICRO, dto.genreCandidates[2].tier)
     }
 }

@@ -10,6 +10,7 @@ import com.example.vinfo.data.settings.ApiKeyStore
 import com.example.vinfo.domain.model.AppResult
 import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.domain.model.TrackMetadata
+import com.example.vinfo.domain.model.buildTrackId
 import com.example.vinfo.domain.usecase.GetTrackInformationUseCase
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,8 +21,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.security.MessageDigest
-import java.util.Locale
 
 data class NowPlayingUiState(
     val isLoading: Boolean = false,
@@ -145,12 +144,6 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
                 catchNowRequestGate.finish()
             }
         }
-    }
-
-    private fun buildTrackId(artist: String, title: String): String {
-        val normalized = "${artist.trim().lowercase(Locale.US)}|${title.trim().lowercase(Locale.US)}"
-        val digest = MessageDigest.getInstance("SHA-256").digest(normalized.toByteArray(Charsets.UTF_8))
-        return digest.take(16).joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private suspend fun fetchLyrics(currentTrack: NowPlayingTrack) {
