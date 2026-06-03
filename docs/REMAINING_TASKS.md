@@ -22,10 +22,14 @@
 ### 3.1 Taste Exploration / Genre Map
 - [x] `GenreMapScreen` 구현 (Compose): 전체 화면 pan/zoom, 노드/엣지 렌더링, 툴팁, 접근성
 - [x] 알 수 없는 장르, 사전 미등록 장르, 직접 연결되지 않은 노드를 화면 상태에서 제외
+- [x] 사용자 주도 `근처 장르 찾기` 팝업: 왼쪽 장르명, 오른쪽 연관성 표시
+- [x] 검색 후보 `지도에 반영` 후 세션 지도에 주변 노드와 강도별 연결선 추가
+- [x] 주변 장르 후보 필터/파서/reducer 단위 테스트
 - [ ] Gemini 장르 응답을 `primary_genres`, `secondary_genres`, `microgenres` 후보 배열 + 신뢰도로 확장
 - [ ] 검수된 `GenreDictionary`를 버전 관리되는 JSON/Kotlin 리소스로 분리
 - [ ] `NormalizeAlbumGenreCandidatesUseCase`, `GetVisibleGenreFlowUseCase` 구현 및 단위 테스트
 - [ ] Room Archive에 `genre_candidates_json` 저장 컬럼 추가
+- [ ] 주변 장르 검색 결과 Room 캐시 및 검수 큐 설계
 - [ ] UI 통합 테스트: 활성 노드 + 직접 연결된 1-hop 후보만 표시, unknown 비노출, pan/zoom 플로우
 
 ## 4. 아키텍처 및 품질 개선

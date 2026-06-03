@@ -159,7 +159,7 @@ interface ArchiveDao {
 
 ### 2.6 Taste Exploration 데이터 모델
 
-`taste_exploration`은 AI가 제안한 작품-장르 후보와 사람이 검수한 장르-장르 관계를 분리한다. Gemini는 작품-장르 후보를 생성하지만, 장르 간 영향 관계를 생성하거나 수정하지 않는다.
+`taste_exploration`은 앨범 저장으로 활성화된 중심 장르와 사용자가 직접 요청한 주변 장르 탐색 결과를 분리한다. Gemini는 앨범 저장 시 장르 관계를 자동 생성하지 않으며, 사용자가 `근처 장르 찾기`를 누른 경우에만 선택 장르 주변 후보를 검색한다.
 
 ```kotlin
 enum class GenreCandidateTier {
@@ -196,6 +196,22 @@ data class VisibleGenreFlow(
   val adjacentNodes: List<String>,
   val visibleRelations: List<GenreRelation>
 )
+
+enum class RelationStrength {
+  STRONG, MEDIUM, WEAK
+}
+
+data class GenreRelationCandidate(
+  val genreName: String,
+  val score: Float,
+  val relationType: String,
+  val evidence: String
+)
+
+data class ConfirmedGenreDiscovery(
+  val sourceGenre: String,
+  val candidates: List<GenreRelationCandidate>
+)
 ```
 
 정적 장르 사전 JSON 예시:
@@ -224,12 +240,41 @@ data class VisibleGenreFlow(
 Validation/Parsing:
 - Gemini에서 받은 장르 후보 필드는 DTO로 받아 내부 정규화/검증을 거친 후 반영한다.
 - 잘못되거나 비정상적인 장르 문자열은 무시한다.
-- 사전 미등록 후보는 향후 관리자 검수 목록에 보관할 수 있으나 런타임 장르 사전을 자동 변경하지 않는다.
+- 주변 장르 검색 결과는 팝업 미리보기 후보로 먼저 표시하고, 사용자가 `지도에 반영`을 누를 때만 세션 지도에 추가한다.
+- 주변 후보의 `relation_strength`는 `0.0..1.0` 범위로 보정한다.
+- `Unknown`, 빈 장르명, 선택 장르 자기 자신, 중복 후보, `score < 0.35` 후보는 무시한다.
 
 
 ---
 
 ## 3. Gemini Album Research Contract
+
+### 3.0 Genre Relation Discovery Contract
+
+- **Trigger:** 사용자가 지도에서 장르 노드를 선택하고 `근처 장르 찾기`를 누를 때만 실행한다.
+- **Runtime Repository:** `GeminiGenreRelationDiscoveryRepository`
+- **Search Grounding:** `tools: [{ "google_search": {} }]`
+- **Output Contract:**
+
+```json
+{
+  "selected_genre": "Hyperpop",
+  "nearby_genres": [
+    {
+      "genre": "Electropop",
+      "relation_strength": 0.92,
+      "relation_type": "influence",
+      "evidence": "Search-grounded evidence"
+    }
+  ],
+  "reliability_notes": []
+}
+```
+
+표시 규칙:
+- 팝업 목록 왼쪽에는 `genre`, 오른쪽에는 `relation_strength`를 변환한 `강함`, `보통`, `약함`을 표시한다.
+- `지도에 반영` 전에는 노드/엣지를 추가하지 않는다.
+- 반영된 관계는 현재 지도 세션에 유지하고, 선은 화살표 없이 굵기와 투명도로만 강도를 표현한다.
 
 ### 3.1 Request Contract
 
@@ -361,7 +406,7 @@ data class GenreCandidateDto(
 - `artist + title`로 앨범 식별 신뢰도가 낮으면 `reliability_notes`에 사유를 남긴다.
 - `primary_genres`, `critics_summary`, `listening_guide`는 최소 필수 필드로 간주한다.
 - RYM/Pitchfork/Metacritic/AOTY는 앨범 기준으로만 파싱한다. 출처가 없으면 값을 만들지 않고 `null`로 유지한다.
-- Gemini는 장르 간 영향선 또는 `adjacent_genres`를 생성하지 않는다. 영향선은 정적 장르 사전에서만 조회한다.
+- 앨범 분석 응답은 장르 간 영향선 또는 `adjacent_genres`를 생성하지 않는다.
 
 ---
 
@@ -455,7 +500,7 @@ sealed interface AppResult<out T> {
 - `GeminiJsonParser` JSON 추출, DTO 파싱, 필수 필드 검증 로직 검증
 - `GenreMapper` 정규화 맵 검증 (동의어 장르 -> 표준 Enum)
 - Gemini 장르 후보 배열 파싱 검증 (`primary_genres`, `secondary_genres`, `microgenres`, confidence)
-- `GenreDictionary` 기반 화면 그래프 검증 (등록 후보만 활성화, 직접 연결된 1-hop만 표시, 신규 영향선 자동 생성 금지)
+- 사용자 주도 주변 장르 검색 검증 (`nearby_genres` 파싱, 강도 라벨, 팝업 반영 reducer)
 - 수동 입력 폴백 시나리오 검증 (권한 없음 -> 인라인 입력 -> 저장 가능)
 - `genreSource` 분기 검증 (`RYM`, `LLM`, `MANUAL`, `UNKNOWN`)
 - 앨범 기준 평점 파싱 검증 (`rymRating`, `pitchforkScore`, `metacriticScore`, `aotyScore` nullable 처리)
@@ -587,4 +632,4 @@ sealed class Route(val path: String) {
 | UI State를 기능 단위로 분리 | Compose 불필요한 Recomposition 방지 |
 | 원문 가사 nullable 필드 | 부분 실패 허용 및 파이프라인 연속성 유지 |
 | 번역 필드 예약 | 현재는 원문만 조회하고, 번역은 후속 기능으로 분리 |
-| 장르 후보와 영향선 분리 | AI는 후보와 신뢰도만 반환하고, 지도 연결은 검수된 정적 사전만 사용 |
+| 앨범 장르와 주변 장르 탐색 분리 | 앨범 저장 시에는 대표 장르만 반영하고, 주변 관계는 사용자가 요청한 Gemini 검색 결과를 팝업 검토 후 세션 지도에 반영 |

@@ -73,7 +73,12 @@ import com.example.vinfo.ui.component.FloatingSettingsButton
 import com.example.vinfo.ui.component.GenreChip
 import com.example.vinfo.ui.component.VinfoCard
 import com.example.vinfo.ui.theme.VinfoTheme
+import com.example.vinfo.domain.model.ConfirmedGenreDiscovery
+import com.example.vinfo.domain.model.RelationStrength
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 
 internal enum class GenreMapNodeType {
     Activated,
@@ -99,6 +104,7 @@ internal data class GenreMapEdgeUi(
     val label: String,
     val evidence: String,
     val unlocked: Boolean,
+    val relationScore: Float = 1f,
 )
 
 internal data class GenreMapUiState(
@@ -208,7 +214,8 @@ internal data class GenreMapUiState(
                     } else {
                         "저장된 앨범 장르와 직접 맞닿은 주변 흐름입니다."
                     },
-                    unlocked = true
+                    unlocked = true,
+                    relationScore = 1f
                 )
             }
 
@@ -283,6 +290,74 @@ internal data class GenreMapUiState(
 
 private fun String.toNodeId(): String = lowercase().replace(" ", "").replace("-", "")
 
+private fun GenreMapUiState.withDiscoveries(
+    discoveries: List<ConfirmedGenreDiscovery>
+): GenreMapUiState {
+    if (discoveries.isEmpty()) return this
+
+    val updatedNodes = nodes.toMutableList()
+    val updatedEdges = edges.toMutableList()
+
+    discoveries.forEach { discovery ->
+        val sourceNode = updatedNodes.firstOrNull {
+            it.label.normalizedGenreKey() == discovery.sourceGenre.normalizedGenreKey()
+        } ?: return@forEach
+
+        discovery.candidates.forEachIndexed { index, candidate ->
+            val candidateId = candidate.genreName.toNodeId()
+            val angle = (2.0 * PI * index / discovery.candidates.size.coerceAtLeast(1)) - PI / 2.0
+            val candidatePosition = Offset(
+                x = (sourceNode.position.x + cos(angle).toFloat() * 0.18f).coerceIn(0.05f, 0.95f),
+                y = (sourceNode.position.y + sin(angle).toFloat() * 0.18f).coerceIn(0.08f, 0.95f)
+            )
+            if (updatedNodes.none { it.id == candidateId }) {
+                updatedNodes += GenreMapNodeUi(
+                    id = candidateId,
+                    genreKey = candidate.genreName.uppercase().replace(" ", "_").replace("-", "_"),
+                    label = candidate.genreName,
+                    note = "탐색한 연결 후보",
+                    saveCount = 0,
+                    lastActivatedText = "검색으로 발견",
+                    type = GenreMapNodeType.Adjacent,
+                    position = candidatePosition,
+                    accessibilityLabel = "${candidate.genreName}, 연결 후보, 연관성 ${candidate.strength.koreanLabel}"
+                )
+            }
+
+            val existingIndex = updatedEdges.indexOfFirst {
+                setOf(it.fromId, it.toId) == setOf(sourceNode.id, candidateId)
+            }
+            val discoveredEdge = GenreMapEdgeUi(
+                fromId = sourceNode.id,
+                toId = candidateId,
+                label = "연관성 ${candidate.strength.koreanLabel}",
+                evidence = candidate.evidence.ifBlank { "Gemini 검색으로 확인한 장르 관계입니다." },
+                unlocked = true,
+                relationScore = candidate.score
+            )
+            if (existingIndex >= 0) {
+                if (updatedEdges[existingIndex].relationScore < candidate.score) {
+                    updatedEdges[existingIndex] = discoveredEdge
+                }
+            } else {
+                updatedEdges += discoveredEdge
+            }
+        }
+    }
+
+    return copy(
+        candidateGenreCount = updatedNodes.count { it.type == GenreMapNodeType.Adjacent },
+        nodes = updatedNodes,
+        edges = updatedEdges
+    )
+}
+
+private fun String.normalizedGenreKey(): String {
+    return trim()
+        .lowercase()
+        .replace(Regex("""[^a-z0-9]+"""), "")
+}
+
 private fun String.toMapGenreName(): String? {
     val normalized = trim().lowercase()
     return when {
@@ -316,12 +391,19 @@ internal fun GenreMapScreen(
     modifier: Modifier = Modifier,
     archiveItems: List<DummyArchive> = emptyList(),
     uiState: GenreMapUiState? = null,
+    discoveryState: GenreMapDiscoveryState = GenreMapDiscoveryState(),
+    onFindNearbyGenres: (String) -> Unit = {},
+    onDismissDiscoveryPopup: () -> Unit = {},
+    onConfirmDiscoveryCandidates: () -> Unit = {},
     onGenreClick: (String) -> Unit = {},
     onEdgeClick: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
 ) {
-    val mapState = uiState ?: remember(archiveItems) { GenreMapUiState.fromArchive(archiveItems) }
+    val mapState = remember(archiveItems, uiState, discoveryState.confirmedDiscoveries) {
+        (uiState ?: GenreMapUiState.fromArchive(archiveItems))
+            .withDiscoveries(discoveryState.confirmedDiscoveries)
+    }
     var selectedNodeId by rememberSaveable(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()?.id) }
     var selectedNode by remember(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()) }
     var selectedEdge by remember { mutableStateOf<GenreMapEdgeUi?>(null) }
@@ -387,6 +469,8 @@ internal fun GenreMapScreen(
         TasteFlowBottomSheet(
             selectedNode = selectedNode,
             recentAlbums = mapState.recentAlbums,
+            isDiscoveryLoading = discoveryState.isLoading,
+            onFindNearbyGenres = onFindNearbyGenres,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
@@ -409,11 +493,7 @@ internal fun GenreMapScreen(
                         color = Color(0xFF4B5563)
                     )
                     Text(
-                        text = if (edge.unlocked) {
-                            "이 연결은 이미 열려 있습니다. 노드를 탭해 확장 경로를 확인하세요."
-                        } else {
-                            "이 연결은 잠금 상태입니다. 반복 저장과 최근성이 쌓이면 열릴 수 있습니다."
-                        },
+                        text = "연관성 ${RelationStrength.fromScore(edge.relationScore).koreanLabel}. 노드를 탭해 주변 흐름을 탐색할 수 있습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF6B7280)
                     )
@@ -424,6 +504,14 @@ internal fun GenreMapScreen(
                     Text("닫기")
                 }
             }
+        )
+    }
+
+    if (discoveryState.isPopupVisible) {
+        NearbyGenreDiscoveryDialog(
+            state = discoveryState,
+            onDismiss = onDismissDiscoveryPopup,
+            onConfirm = onConfirmDiscoveryCandidates
         )
     }
 }
@@ -555,6 +643,8 @@ private fun MapFloatingControls(
 private fun TasteFlowBottomSheet(
     selectedNode: GenreMapNodeUi?,
     recentAlbums: List<DummyArchive>,
+    isDiscoveryLoading: Boolean,
+    onFindNearbyGenres: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Surface(
@@ -568,7 +658,7 @@ private fun TasteFlowBottomSheet(
     ) {
         Column(
             modifier = Modifier
-                .height(252.dp)
+                .height(318.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp, vertical = 14.dp)
         ) {
@@ -606,6 +696,21 @@ private fun TasteFlowBottomSheet(
                 }
             }
 
+            selectedNode?.let { node ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Button(
+                    onClick = { onFindNearbyGenres(node.label) },
+                    enabled = !isDiscoveryLoading,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0058BC))
+                ) {
+                    Text(
+                        text = if (isDiscoveryLoading) "찾는 중..." else "근처 장르 찾기",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(16.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -639,6 +744,101 @@ private fun TasteFlowBottomSheet(
             }
         }
     }
+}
+
+@Composable
+private fun NearbyGenreDiscoveryDialog(
+    state: GenreMapDiscoveryState,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "${state.selectedGenre.orEmpty()} 주변 장르",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF181C23)
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "검색 결과를 확인하고 지도에 반영할 수 있습니다.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF6B7280)
+                )
+                state.errorMessage?.let { message ->
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFBA1A1A)
+                    )
+                }
+                if (state.errorMessage == null && state.candidates.isEmpty()) {
+                    Text(
+                        text = "확인 가능한 주변 장르를 찾지 못했습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+                if (state.candidates.isNotEmpty()) {
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "장르",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6B7280)
+                        )
+                        Text(
+                            text = "연관성",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF6B7280)
+                        )
+                    }
+                    state.candidates.forEach { candidate ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = candidate.genreName,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF181C23)
+                            )
+                            Text(
+                                text = candidate.strength.koreanLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = when (candidate.strength) {
+                                    RelationStrength.STRONG -> Color(0xFF0058BC)
+                                    RelationStrength.MEDIUM -> Color(0xFF3B82F6)
+                                    RelationStrength.WEAK -> Color(0xFF64748B)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = state.candidates.isNotEmpty()
+            ) {
+                Text("지도에 반영")
+            }
+        }
+    )
 }
 
 @Composable
@@ -710,19 +910,18 @@ private fun FullFlowMapCanvas(
                 val start = screenPosition(from)
                 val end = screenPosition(to)
                 val isActive = from.type == GenreMapNodeType.Activated && to.type == GenreMapNodeType.Activated
-                val isCandidate = edge.unlocked && !isActive
+                val isCandidate = !isActive
                 val lineColor = when {
                     isActive -> Color(0xFF0058BC)
                     isCandidate -> Color(0xFF60A5FA)
                     else -> Color(0xFFCBD5E1)
                 }
                 drawLine(
-                    color = lineColor.copy(alpha = if (edge.unlocked) 0.78f else 0.42f),
+                    color = lineColor.copy(alpha = 0.35f + edge.relationScore.coerceIn(0f, 1f) * 0.55f),
                     start = start,
                     end = end,
-                    strokeWidth = if (isActive) 5.4f else if (isCandidate) 3.2f else 1.6f,
-                    cap = StrokeCap.Round,
-                    pathEffect = if (edge.unlocked) null else PathEffect.dashPathEffect(floatArrayOf(10f, 10f))
+                    strokeWidth = 1.8f + edge.relationScore.coerceIn(0f, 1f) * 4.2f,
+                    cap = StrokeCap.Round
                 )
             }
         }

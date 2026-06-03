@@ -69,7 +69,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     7.  Listening Guide (Focus points) explaining the current track in the album context.
 * **Output Format:** JSON 형식으로 응답을 강제하여 앱 내 View에서 구조적으로 표시.
 * **Missing Data Rule:** RYM, Pitchfork, Metacritic, AOTY 중 확인 가능한 출처만 표시한다. 확인되지 않는 값은 추정하지 않고 `null` 또는 빈 배열로 반환한다.
-* **Genre Candidate Rule:** Gemini는 앨범의 장르 후보와 신뢰도만 반환한다. 장르 간 영향 관계나 신규 연결선을 생성하지 않는다.
+* **Genre Candidate Rule:** 앨범 분석 단계에서 Gemini는 앨범의 장르 후보와 신뢰도만 반환한다. 장르 간 영향 관계나 신규 연결선은 앨범 저장 시 자동 생성하지 않는다.
 * **Current JSON Keys:** `artist`, `title`, `album`, `primary_genres`, `secondary_genres`, `microgenres`, `genre_source`, `rym_rating`, `pitchfork_score`, `metacritic_score`, `aoty_score`, `critics_summary`, `interview_summary`, `listening_guide`, `samples_used`, `missing_sources`, `reliability_notes`.
 
 ### 3.3 [Feature 3] Lyrics & AI Translation (lyrics.ovh + Gemini)
@@ -105,9 +105,12 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     * 초기 상태에서 탐험 지도는 비활성(빈 노드) 상태로 시작한다.
     * 곡 저장 시 식별된 앨범의 장르 후보를 표준 장르 사전에 매핑한다.
     * 신뢰도 기준을 통과하고 표준 장르 사전에 존재하는 후보만 활성 장르로 저장한다.
-    * 활성 장르와 정적 장르 사전에서 직접 연결된 1-hop 주변 노드만 화면에 표시한다.
+    * 활성 장르와 직접 연결된 1-hop 주변 노드만 화면에 표시한다.
     * 알 수 없는 장르, 사전에 없는 장르, 활성 장르와 직접 연결되지 않은 노드는 화면에 표시하지 않는다.
-    * 장르 간 영향선은 AI가 생성하지 않고, 사람이 검수한 정적 장르 사전의 연결만 사용한다.
+    * 장르 노드를 선택하고 `근처 장르 찾기`를 누르면 Gemini Search grounding으로 주변 장르와 연관성 강도를 조회한다.
+    * 검색 결과는 팝업 리스트로 먼저 표시하며, 사용자가 `지도에 반영`을 눌렀을 때만 주변 노드와 연결선을 세션 지도에 추가한다.
+    * 팝업 리스트는 왼쪽에 장르명, 오른쪽에 연관성(`강함`, `보통`, `약함`)을 표시한다.
+    * 장르 간 연결선은 화살표 없이 표시하고, 연관성 강도에 따라 굵기와 투명도를 조절한다.
     * 반복 저장 횟수는 기존 영향선을 새로 만들지 않고 시각적 강도와 우선순위만 보정한다.
 * **User-visible Outputs:**
     * 현재 취향 흐름 예시(예: Hip-hop -> Jazz Rap -> Neo Soul)
@@ -115,8 +118,9 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     * 활성 장르 / 직접 연결된 주변 후보 구분 시각화
 * **Logical Constraints:**
     * 추천 어휘("추천", "다음 곡")보다 탐험 어휘("연결", "확장", "탐험")를 우선 사용해야 한다.
-    * 인접 장르 계산은 내부 장르 사전(표준 장르 목록 + 검수된 정적 영향선)만 사용한다.
-    * AI가 반환한 자유 텍스트 장르 또는 영향 관계를 검증 없이 그래프에 삽입하지 않는다.
+    * 앨범 저장 시에는 AI가 반환한 자유 텍스트 장르 또는 영향 관계를 검증 없이 그래프에 삽입하지 않는다.
+    * 사용자 주도 검색 결과는 팝업 미리보기 상태로 유지하고, 사용자가 명시적으로 반영하기 전까지 지도에 추가하지 않는다.
+    * `Unknown`, 빈 장르명, 선택 장르 자기 자신, 중복 후보, 연관성 기준 미달 후보는 표시하지 않는다.
     * MVP 지도는 1-hop만 표시한다. 2-hop 확장은 후속 검토 대상으로 둔다.
 
 ---
@@ -131,7 +135,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 * **Local DB:** Room Persistence Library
 
 ### 4.2 API Integration Flow
-[Catch Music] -> [Extract Artist/Title] -> [Identify Album via Gemini] -> [Fetch Album-based Metadata + Genre Candidates] -> [lyrics.ovh Raw Lyrics] -> [Archive Commit] -> [Genre Dictionary Normalization] -> [Verified 1-hop Graph Lookup] -> [Combine & Display]
+[Catch Music] -> [Extract Artist/Title] -> [Identify Album via Gemini] -> [Fetch Album-based Metadata + Genre Candidates] -> [lyrics.ovh Raw Lyrics] -> [Archive Commit] -> [Map Active Genre Display] -> [User Selects Genre] -> [Find Nearby Genres via Gemini] -> [Popup Preview] -> [Apply To Session Map]
 
 ---
 
@@ -167,8 +171,8 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     RYM, Pitchfork, Metacritic, AOTY 평점은 앨범 기준으로만 취급한다. Gemini가 확인되지 않은 점수를 만들어낼 위험이 있으므로, 출처별 값은 실제로 확인 가능한 경우에만 표시하고 없으면 `null`로 둔다. '이 정보는 AI에 의해 생성되었으며 실제와 다를 수 있음'이라는 면책 조항은 디자인적으로 필수입니다.
 
 6.  **Exploration Graph Integrity (탐험 그래프 무결성):**
-    AI가 장르 간 영향선을 즉석에서 만들면 그럴듯하지만 검증되지 않은 계보가 누적될 수 있습니다.
-    * *Countermeasure:* 장르 간 영향선은 검수된 정적 장르 사전에서만 조회한다. AI는 작품-장르 후보 생성까지만 담당한다.
+    AI가 장르 간 영향선을 자동으로 누적하면 그럴듯하지만 검증되지 않은 계보가 쌓일 수 있습니다.
+    * *Countermeasure:* 앨범 저장 시 자동 확장을 금지한다. 사용자가 `근처 장르 찾기`를 눌렀을 때만 Gemini 검색을 실행하고, 결과를 팝업 후보로 보여준 뒤 명시적 반영 액션을 요구한다.
 
 7.  **Cold Start Map (초기 지도 공백):**
     신규 사용자는 저장 이력이 적어 지도가 과도하게 비어 보일 수 있습니다.

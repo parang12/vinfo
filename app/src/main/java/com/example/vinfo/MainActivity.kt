@@ -69,6 +69,7 @@ import com.example.vinfo.ui.permission.openAppNotificationSettings
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
 import com.example.vinfo.ui.stats.GenreMapScreen
+import com.example.vinfo.ui.stats.GenreMapViewModel
 import com.example.vinfo.ui.theme.VinfoPrimary
 import com.example.vinfo.ui.theme.VinfoSurface
 import com.example.vinfo.ui.theme.VinfoTheme
@@ -243,8 +244,14 @@ fun MainScreen() {
             }
             composable(Route.GenreStats.path) {
                 val archiveList by archiveViewModel.archiveList.collectAsState()
+                val genreMapViewModel: GenreMapViewModel = viewModel()
+                val discoveryState by genreMapViewModel.discoveryState.collectAsState()
                 GenreMapScreen(
                     archiveItems = archiveList,
+                    discoveryState = discoveryState,
+                    onFindNearbyGenres = genreMapViewModel::findNearbyGenres,
+                    onDismissDiscoveryPopup = genreMapViewModel::dismissDiscoveryPopup,
+                    onConfirmDiscoveryCandidates = genreMapViewModel::confirmDiscoveryCandidates,
                     onBackClick = { navController.popBackStack() },
                     onSettingsClick = { navController.navigate(Route.Settings.path) },
                 )
