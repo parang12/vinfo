@@ -40,6 +40,7 @@ fun NowPlayingScreen(
     onViewAllArchiveClick: () -> Unit = {},
     onOpenMapClick: () -> Unit = {},
     isLoading: Boolean = false,
+    isCatchNowEnabled: Boolean = true,
     statusMessage: String? = null,
     currentTrack: NowPlayingTrack? = null
 ) {
@@ -153,6 +154,7 @@ fun NowPlayingScreen(
                 ) {
                     Button(
                         onClick = onCatchNowClick,
+                        enabled = isCatchNowEnabled,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),

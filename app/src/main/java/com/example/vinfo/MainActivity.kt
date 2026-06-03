@@ -194,6 +194,7 @@ fun MainScreen() {
                         }
                     },
                     isLoading = nowPlayingState.isLoading,
+                    isCatchNowEnabled = !nowPlayingState.isLoading && !nowPlayingState.isLyricsLoading,
                     statusMessage = nowPlayingState.statusMessage,
                     currentTrack = nowPlayingState.currentTrack
                 )

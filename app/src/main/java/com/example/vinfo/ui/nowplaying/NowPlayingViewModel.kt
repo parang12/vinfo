@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
 import java.util.Locale
@@ -37,6 +38,7 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
     private val apiKeyStore = ApiKeyStore(application.applicationContext)
     private val getTrackInformationUseCase = GetTrackInformationUseCase(GeminiTrackMetadataRepository())
     private val lyricsRepository = LyricsRepository()
+    private val catchNowRequestGate = CatchNowRequestGate()
 
     private val _uiState = MutableStateFlow(NowPlayingUiState())
     val uiState: StateFlow<NowPlayingUiState> = _uiState.asStateFlow()
@@ -59,78 +61,88 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun catchNow() {
+        if (!catchNowRequestGate.tryStart()) {
+            return
+        }
+
         viewModelScope.launch {
-            val currentTrack = _uiState.value.currentTrack
-            if (currentTrack == null) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        statusMessage = "현재 재생 곡을 아직 감지하지 못했습니다. 알림 접근 권한을 확인해 주세요."
-                    )
-                }
-                return@launch
-            }
-
-            _uiState.update {
-                it.copy(
-                    isLyricsLoading = true,
-                    originalLyrics = null,
-                    lyricsErrorMessage = null
-                )
-            }
-            fetchLyrics(currentTrack)
-
-            val apiKey = apiKeyStore.getGeminiApiKey()
-            if (apiKey.isBlank()) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        statusMessage = "원문 가사를 조회 중입니다. 앨범 분석을 사용하려면 Gemini API Key를 설정해 주세요."
-                    )
-                }
-                return@launch
-            }
-
-            _uiState.update {
-                it.copy(isLoading = true, statusMessage = "Gemini로 음악 정보를 가져오는 중입니다.")
-            }
-
-            when (val result = getTrackInformationUseCase(currentTrack.artist, currentTrack.title, currentTrack.album, apiKey)) {
-                is AppResult.Success -> {
-                    val metadata = result.data
-                    _uiState.value = NowPlayingUiState(
-                        isLoading = false,
-                        isLyricsLoading = _uiState.value.isLyricsLoading,
-                        statusMessage = "정보를 가져왔습니다.",
-                        currentTrack = currentTrack,
-                        trackMetadata = metadata,
-                        originalLyrics = _uiState.value.originalLyrics,
-                        lyricsErrorMessage = _uiState.value.lyricsErrorMessage
-                    )
-                    _navigationEvents.tryEmit(buildTrackId(metadata.artist, metadata.title))
-                }
-
-                is AppResult.Error -> {
+            var lyricsJob: Job? = null
+            try {
+                val currentTrack = _uiState.value.currentTrack
+                if (currentTrack == null) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            statusMessage = result.message,
-                            currentTrack = currentTrack,
-                            trackMetadata = null
+                            statusMessage = "현재 재생 곡을 아직 감지하지 못했습니다. 알림 접근 권한을 확인해 주세요."
                         )
                     }
+                    return@launch
                 }
 
-                AppResult.Loading -> {
+                _uiState.update {
+                    it.copy(
+                        isLyricsLoading = true,
+                        originalLyrics = null,
+                        lyricsErrorMessage = null
+                    )
+                }
+                lyricsJob = launch { fetchLyrics(currentTrack) }
+
+                val apiKey = apiKeyStore.getGeminiApiKey()
+                if (apiKey.isBlank()) {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            statusMessage = "요청 상태를 확인할 수 없습니다.",
-                            currentTrack = currentTrack,
-                            trackMetadata = null
+                            statusMessage = "원문 가사를 조회 중입니다. 앨범 분석을 사용하려면 Gemini API Key를 설정해 주세요."
                         )
                     }
+                    return@launch
                 }
+
+                _uiState.update {
+                    it.copy(isLoading = true, statusMessage = "Gemini로 음악 정보를 가져오는 중입니다.")
+                }
+
+                when (val result = getTrackInformationUseCase(currentTrack.artist, currentTrack.title, currentTrack.album, apiKey)) {
+                    is AppResult.Success -> {
+                        val metadata = result.data
+                        _uiState.value = NowPlayingUiState(
+                            isLoading = false,
+                            isLyricsLoading = _uiState.value.isLyricsLoading,
+                            statusMessage = "정보를 가져왔습니다.",
+                            currentTrack = currentTrack,
+                            trackMetadata = metadata,
+                            originalLyrics = _uiState.value.originalLyrics,
+                            lyricsErrorMessage = _uiState.value.lyricsErrorMessage
+                        )
+                        _navigationEvents.tryEmit(buildTrackId(metadata.artist, metadata.title))
+                    }
+
+                    is AppResult.Error -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                statusMessage = result.message,
+                                currentTrack = currentTrack,
+                                trackMetadata = null
+                            )
+                        }
+                    }
+
+                    AppResult.Loading -> {
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                statusMessage = "요청 상태를 확인할 수 없습니다.",
+                                currentTrack = currentTrack,
+                                trackMetadata = null
+                            )
+                        }
+                    }
+                }
+            } finally {
+                lyricsJob?.join()
+                catchNowRequestGate.finish()
             }
         }
     }
@@ -141,29 +153,27 @@ class NowPlayingViewModel(application: Application) : AndroidViewModel(applicati
         return digest.take(16).joinToString("") { byte -> "%02x".format(byte) }
     }
 
-    private fun fetchLyrics(currentTrack: NowPlayingTrack) {
-        viewModelScope.launch {
-            when (val result = lyricsRepository.getRawLyrics(currentTrack.artist, currentTrack.title)) {
-                is AppResult.Success -> {
-                    _uiState.update {
-                        it.copy(
-                            isLyricsLoading = false,
-                            originalLyrics = result.data,
-                            lyricsErrorMessage = null
-                        )
-                    }
+    private suspend fun fetchLyrics(currentTrack: NowPlayingTrack) {
+        when (val result = lyricsRepository.getRawLyrics(currentTrack.artist, currentTrack.title)) {
+            is AppResult.Success -> {
+                _uiState.update {
+                    it.copy(
+                        isLyricsLoading = false,
+                        originalLyrics = result.data,
+                        lyricsErrorMessage = null
+                    )
                 }
-                is AppResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLyricsLoading = false,
-                            originalLyrics = null,
-                            lyricsErrorMessage = result.message
-                        )
-                    }
-                }
-                AppResult.Loading -> Unit
             }
+            is AppResult.Error -> {
+                _uiState.update {
+                    it.copy(
+                        isLyricsLoading = false,
+                        originalLyrics = null,
+                        lyricsErrorMessage = result.message
+                    )
+                }
+            }
+            AppResult.Loading -> Unit
         }
     }
 
