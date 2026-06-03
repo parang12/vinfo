@@ -8,6 +8,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.sqrt
 
 class GenreMapUiStateDiscoveryTest {
     @Test
@@ -86,5 +87,57 @@ class GenreMapUiStateDiscoveryTest {
         assertEquals(1, drillEdges.size)
         assertEquals(0.90f, drillEdges.single().relationScore, 0.001f)
         assertTrue(drillEdges.single().label.contains("강함"))
+    }
+
+    @Test
+    fun `withDiscoveries spreads discovered nearby nodes away from existing map nodes`() {
+        val baseState = GenreMapUiState.fromArchive(
+            listOf(
+                DummyArchive(
+                    id = "album-1",
+                    title = "Album",
+                    artist = "Artist",
+                    genres = listOf("Hip-Hop"),
+                    date = "2026.06.03"
+                )
+            )
+        )
+        val candidateNames = listOf("Drill", "Cloud Rap", "Grime", "Phonk", "Crunk")
+
+        val updatedState = baseState.withDiscoveries(
+            listOf(
+                ConfirmedGenreDiscovery(
+                    sourceGenre = "Hip-Hop",
+                    candidates = candidateNames.mapIndexed { index, genre ->
+                        GenreRelationCandidate(
+                            genreName = genre,
+                            score = 0.85f - (index * 0.05f),
+                            relationType = "adjacent",
+                            evidence = "$genre relation"
+                        )
+                    }
+                )
+            )
+        )
+
+        val discoveredNodes = updatedState.nodes.filter { it.label in candidateNames }
+        val closestDistance = discoveredNodes
+            .flatMapIndexed { index, first ->
+                discoveredNodes.drop(index + 1).map { second ->
+                    first.position.distanceTo(second.position)
+                }
+            }
+            .minOrNull()
+
+        assertEquals(candidateNames.size, discoveredNodes.size)
+        assertTrue(closestDistance != null && closestDistance > 0.16f)
+    }
+
+    private fun androidx.compose.ui.geometry.Offset.distanceTo(
+        other: androidx.compose.ui.geometry.Offset
+    ): Float {
+        val dx = x - other.x
+        val dy = y - other.y
+        return sqrt(dx * dx + dy * dy)
     }
 }

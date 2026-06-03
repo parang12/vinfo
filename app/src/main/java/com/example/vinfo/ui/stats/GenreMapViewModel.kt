@@ -63,15 +63,24 @@ fun GenreMapDiscoveryState.dismissPopup(): GenreMapDiscoveryState {
     )
 }
 
-fun GenreMapDiscoveryState.confirmCandidates(): GenreMapDiscoveryState {
+fun GenreMapDiscoveryState.confirmCandidates(
+    selectedCandidates: List<GenreRelationCandidate>
+): GenreMapDiscoveryState {
     val source = selectedGenre ?: return dismissPopup()
-    if (candidates.isEmpty()) return dismissPopup()
+    if (candidates.isEmpty() || selectedCandidates.isEmpty()) return dismissPopup()
+
+    val availableCandidateKeys = candidates
+        .map { it.genreName.normalizedGenreKey() }
+        .toSet()
+    val candidatesToConfirm = selectedCandidates
+        .filter { it.genreName.normalizedGenreKey() in availableCandidateKeys }
+    if (candidatesToConfirm.isEmpty()) return dismissPopup()
 
     val existing = confirmedDiscoveries
         .firstOrNull { it.sourceGenre.normalizedGenreKey() == source.normalizedGenreKey() }
         ?.candidates
         .orEmpty()
-    val mergedCandidates = (existing + candidates)
+    val mergedCandidates = (existing + candidatesToConfirm)
         .groupBy { it.genreName.normalizedGenreKey() }
         .values
         .mapNotNull { duplicates -> duplicates.maxByOrNull(GenreRelationCandidate::score) }
@@ -124,7 +133,7 @@ class GenreMapViewModel @JvmOverloads constructor(
         _discoveryState.update(GenreMapDiscoveryState::dismissPopup)
     }
 
-    fun confirmDiscoveryCandidates() {
-        _discoveryState.update(GenreMapDiscoveryState::confirmCandidates)
+    fun confirmDiscoveryCandidates(selectedCandidates: List<GenreRelationCandidate>) {
+        _discoveryState.update { it.confirmCandidates(selectedCandidates) }
     }
 }

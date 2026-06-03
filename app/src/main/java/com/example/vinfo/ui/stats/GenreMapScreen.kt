@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -74,11 +75,13 @@ import com.example.vinfo.ui.component.GenreChip
 import com.example.vinfo.ui.component.VinfoCard
 import com.example.vinfo.ui.theme.VinfoTheme
 import com.example.vinfo.domain.model.ConfirmedGenreDiscovery
+import com.example.vinfo.domain.model.GenreRelationCandidate
 import com.example.vinfo.domain.model.RelationStrength
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 
 internal enum class GenreMapNodeType {
     Activated,
@@ -305,12 +308,13 @@ internal fun GenreMapUiState.withDiscoveries(
 
         discovery.candidates.forEachIndexed { index, candidate ->
             val candidateId = candidate.genreName.toNodeId()
-            val angle = (2.0 * PI * index / discovery.candidates.size.coerceAtLeast(1)) - PI / 2.0
-            val candidatePosition = Offset(
-                x = (sourceNode.position.x + cos(angle).toFloat() * 0.18f).coerceIn(0.05f, 0.95f),
-                y = (sourceNode.position.y + sin(angle).toFloat() * 0.18f).coerceIn(0.08f, 0.95f)
-            )
             if (updatedNodes.none { it.id == candidateId }) {
+                val candidatePosition = findOpenGenreNodePosition(
+                    source = sourceNode.position,
+                    candidateIndex = index,
+                    candidateCount = discovery.candidates.size,
+                    occupiedPositions = updatedNodes.map { it.position }
+                )
                 updatedNodes += GenreMapNodeUi(
                     id = candidateId,
                     genreKey = candidate.genreName.uppercase().replace(" ", "_").replace("-", "_"),
@@ -350,6 +354,45 @@ internal fun GenreMapUiState.withDiscoveries(
         nodes = updatedNodes,
         edges = updatedEdges
     )
+}
+
+private fun findOpenGenreNodePosition(
+    source: Offset,
+    candidateIndex: Int,
+    candidateCount: Int,
+    occupiedPositions: List<Offset>
+): Offset {
+    val slots = candidateCount.coerceAtLeast(7)
+    val startAngle = -PI / 2.0
+    val radii = listOf(0.23f, 0.31f, 0.39f, 0.47f)
+    val minDistance = 0.155f
+
+    radii.forEachIndexed { radiusIndex, radius ->
+        repeat(slots) { slotOffset ->
+            val slot = candidateIndex + slotOffset + (radiusIndex * 2)
+            val angle = startAngle + (2.0 * PI * slot / slots)
+            val position = Offset(
+                x = (source.x + cos(angle).toFloat() * radius).coerceIn(0.06f, 0.94f),
+                y = (source.y + sin(angle).toFloat() * radius).coerceIn(0.08f, 0.94f)
+            )
+            if (occupiedPositions.none { it.distanceTo(position) < minDistance }) {
+                return position
+            }
+        }
+    }
+
+    val fallbackRadius = 0.28f + (candidateIndex % 4) * 0.08f
+    val fallbackAngle = startAngle + (candidateIndex * 2.399963229728653)
+    return Offset(
+        x = (source.x + cos(fallbackAngle).toFloat() * fallbackRadius).coerceIn(0.06f, 0.94f),
+        y = (source.y + sin(fallbackAngle).toFloat() * fallbackRadius).coerceIn(0.08f, 0.94f)
+    )
+}
+
+private fun Offset.distanceTo(other: Offset): Float {
+    val dx = x - other.x
+    val dy = y - other.y
+    return sqrt(dx * dx + dy * dy)
 }
 
 private fun String.normalizedGenreKey(): String {
@@ -394,7 +437,7 @@ internal fun GenreMapScreen(
     discoveryState: GenreMapDiscoveryState = GenreMapDiscoveryState(),
     onFindNearbyGenres: (String) -> Unit = {},
     onDismissDiscoveryPopup: () -> Unit = {},
-    onConfirmDiscoveryCandidates: () -> Unit = {},
+    onConfirmDiscoveryCandidates: (List<GenreRelationCandidate>) -> Unit = {},
     onGenreClick: (String) -> Unit = {},
     onEdgeClick: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
@@ -750,8 +793,15 @@ private fun TasteFlowBottomSheet(
 private fun NearbyGenreDiscoveryDialog(
     state: GenreMapDiscoveryState,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
+    onConfirm: (List<GenreRelationCandidate>) -> Unit,
 ) {
+    var selectedCandidateKeys by remember(state.selectedGenre, state.candidates) {
+        mutableStateOf(state.candidates.map { it.genreName.normalizedGenreKey() }.toSet())
+    }
+    val selectedCandidates = remember(state.candidates, selectedCandidateKeys) {
+        state.candidates.filter { it.genreName.normalizedGenreKey() in selectedCandidateKeys }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -764,7 +814,7 @@ private fun NearbyGenreDiscoveryDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "검색 결과를 확인하고 지도에 반영할 수 있습니다.",
+                    text = "추가할 장르만 선택해서 지도에 반영할 수 있습니다.",
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF6B7280)
                 )
@@ -799,11 +849,33 @@ private fun NearbyGenreDiscoveryDialog(
                         )
                     }
                     state.candidates.forEach { candidate ->
+                        val candidateKey = candidate.genreName.normalizedGenreKey()
+                        val isSelected = candidateKey in selectedCandidateKeys
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    selectedCandidateKeys = if (isSelected) {
+                                        selectedCandidateKeys - candidateKey
+                                    } else {
+                                        selectedCandidateKeys + candidateKey
+                                    }
+                                }
+                                .padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked ->
+                                    selectedCandidateKeys = if (checked) {
+                                        selectedCandidateKeys + candidateKey
+                                    } else {
+                                        selectedCandidateKeys - candidateKey
+                                    }
+                                }
+                            )
                             Text(
                                 text = candidate.genreName,
                                 modifier = Modifier.weight(1f),
@@ -822,6 +894,11 @@ private fun NearbyGenreDiscoveryDialog(
                             )
                         }
                     }
+                    Text(
+                        text = "선택한 장르 ${selectedCandidates.size}개",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color(0xFF6B7280)
+                    )
                 }
             }
         },
@@ -832,10 +909,10 @@ private fun NearbyGenreDiscoveryDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = onConfirm,
-                enabled = state.candidates.isNotEmpty()
+                onClick = { onConfirm(selectedCandidates) },
+                enabled = selectedCandidates.isNotEmpty()
             ) {
-                Text("지도에 반영")
+                Text("선택 반영")
             }
         }
     )

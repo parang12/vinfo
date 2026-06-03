@@ -67,8 +67,9 @@ vinfo는 유지보수성과 외부 API 종속성 격리를 위해 Clean Architec
 3. 파싱: `GeminiGenreRelationJsonParser`가 `nearby_genres` 배열을 `GenreRelationCandidate`로 변환한다.
 4. 검증: `DiscoverNearbyGenresUseCase`가 `Unknown`, 빈 값, 자기 자신, 중복, `score < 0.35` 후보를 제외하고 최대 6개만 유지한다.
 5. 팝업: 후보는 바로 지도에 들어가지 않고 팝업 리스트로 표시된다.
-6. 반영: 사용자가 `지도에 반영`을 누르면 `ConfirmedGenreDiscovery`로 세션 상태에 저장되고 지도에 주변 노드와 연결선을 추가한다.
+6. 선택 반영: 팝업에서 사용자가 체크한 후보만 `ConfirmedGenreDiscovery`로 세션 상태에 저장되고 지도에 주변 노드와 연결선을 추가한다.
 7. 시각 강도: `relation_strength`는 선 굵기와 투명도, 팝업의 `강함/보통/약함` 라벨로 표현한다.
+8. 배치: 새 주변 노드는 선택 장르 주변의 여러 반지름 슬롯을 탐색해 기존 노드와 최소 간격을 확보한 위치에 둔다.
 
 ### 5.5 Presentation 요구사항
 - 노드 유형: `Activated`(앨범 저장으로 확인됨), `Adjacent`(사용자 검색으로 발견되어 반영됨)
@@ -93,7 +94,7 @@ vinfo는 유지보수성과 외부 API 종속성 격리를 위해 Clean Architec
 ### 5.9 테스트 전략
 - 유닛: 주변 후보 필터, 연관성 강도 라벨, Gemini 요청 빌더, JSON 파서, 팝업 reducer 테스트
 - 통합: 선택 장르 -> Gemini 응답 -> 후보 필터 -> 팝업 후보 -> 지도 반영 흐름 검증
-- UI: Compose 테스트로 팝업 목록, `지도에 반영`, pan/zoom, unknown 비노출 검증
+- UI: Compose 테스트로 팝업 목록, 선택 후보 반영, pan/zoom, unknown 비노출 검증
 
 ---
 
