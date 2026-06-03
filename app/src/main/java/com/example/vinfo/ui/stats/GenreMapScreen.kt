@@ -290,7 +290,7 @@ internal data class GenreMapUiState(
 
 private fun String.toNodeId(): String = lowercase().replace(" ", "").replace("-", "")
 
-private fun GenreMapUiState.withDiscoveries(
+internal fun GenreMapUiState.withDiscoveries(
     discoveries: List<ConfirmedGenreDiscovery>
 ): GenreMapUiState {
     if (discoveries.isEmpty()) return this
