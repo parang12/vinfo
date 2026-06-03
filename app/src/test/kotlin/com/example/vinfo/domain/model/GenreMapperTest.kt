@@ -9,6 +9,8 @@ class GenreMapperTest {
     fun `fromRawGenre maps common album subgenres used by Gemini`() {
         assertEquals(GenreCategory.HIP_HOP, GenreMapper.fromRawGenre("Pop Rap"))
         assertEquals(GenreCategory.HIP_HOP, GenreMapper.fromRawGenre("Progressive Rap"))
+        assertEquals(GenreCategory.TRAP, GenreMapper.fromRawGenre("Trap"))
+        assertEquals(GenreCategory.TRAP, GenreMapper.fromRawGenre("Southern Trap"))
         assertEquals(GenreCategory.RNB, GenreMapper.fromRawGenre("Soul"))
         assertEquals(GenreCategory.POP, GenreMapper.fromRawGenre("Art Pop"))
     }

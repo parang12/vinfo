@@ -110,6 +110,28 @@ class GenreMapUiStateDiscoveryTest {
     }
 
     @Test
+    fun `fromArchive keeps trap rap tags as trap instead of folding into hip hop`() {
+        val state = GenreMapUiState.fromArchive(
+            listOf(
+                DummyArchive(
+                    id = "album-1",
+                    title = "Culture",
+                    artist = "Migos",
+                    genres = listOf("Trap Rap"),
+                    date = "2026.06.03"
+                )
+            )
+        )
+
+        val trapNode = state.nodes.firstOrNull { it.label == "Trap" }
+        val hipHopNode = state.nodes.firstOrNull { it.label == "Hip-Hop" }
+
+        assertNotNull(trapNode)
+        assertEquals(GenreMapNodeType.Activated, trapNode!!.type)
+        assertTrue(hipHopNode == null || hipHopNode.type != GenreMapNodeType.Activated)
+    }
+
+    @Test
     fun `withDiscoveries marks already visible nearby nodes with searched relation evidence`() {
         val baseState = GenreMapUiState.fromArchive(
             listOf(

@@ -115,6 +115,7 @@ data class AlbumEntity(
 private fun GenreCategory.displayNameOrNull(): String? {
     return when (this) {
         GenreCategory.HIP_HOP -> "Hip Hop"
+        GenreCategory.TRAP -> "Trap"
         GenreCategory.POP -> "Pop"
         GenreCategory.ROCK -> "Rock"
         GenreCategory.ELECTRONIC -> "Electronic"

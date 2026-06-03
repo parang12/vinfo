@@ -44,6 +44,8 @@ class GeminiRequestBuilderTest {
         assertTrue(systemText.contains("metacritic_score"))
         assertTrue(systemText.contains("aoty_score"))
         assertTrue(systemText.contains("missing_sources"))
+        assertTrue(systemText.contains("most specific"))
+        assertTrue(systemText.contains("Trap"))
         assertTrue(systemText.contains("Reddit"))
         assertTrue(systemText.contains("HipHople"))
         assertTrue(systemText.contains("community-only score"))

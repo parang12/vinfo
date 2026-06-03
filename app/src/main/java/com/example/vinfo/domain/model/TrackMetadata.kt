@@ -21,6 +21,7 @@ data class TrackMetadata(
 
 enum class GenreCategory {
     HIP_HOP,
+    TRAP,
     POP,
     ROCK,
     ELECTRONIC,

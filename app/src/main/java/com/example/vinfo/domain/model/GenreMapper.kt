@@ -10,10 +10,10 @@ object GenreMapper {
 
         return when {
             normalized.isBlank() -> GenreCategory.UNKNOWN
+            normalized.contains("trap") -> GenreCategory.TRAP
             normalized.contains("hip hop") ||
                 normalized.contains("hip-hop") ||
-                normalized.contains("rap") ||
-                normalized.contains("trap") -> GenreCategory.HIP_HOP
+                normalized.contains("rap") -> GenreCategory.HIP_HOP
             normalized.contains("r&b") ||
                 normalized.contains("rnb") ||
                 normalized.contains("neo soul") ||
