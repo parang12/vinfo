@@ -59,7 +59,6 @@ object GeminiRequestBuilder {
                 JSONObject()
                     .put("temperature", 0.2)
                     .put("maxOutputTokens", 1024)
-                    .put("responseMimeType", "application/json")
             )
 
         return body.toString().toRequestBody(jsonMediaType)

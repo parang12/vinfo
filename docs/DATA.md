@@ -283,7 +283,7 @@ Validation/Parsing:
 - **Runtime Repository:** `GeminiTrackMetadataRepository`
 - **Runtime Model:** `gemini-2.5-flash-lite`
 - **Search Grounding:** `tools: [{ "google_search": {} }]`를 활성화하여 실시간 웹 검색 결과를 근거로 사용한다.
-- **Output Constraint:** `generationConfig.responseMimeType = "application/json"`을 사용하고, 응답 본문은 JSON-only로 제한한다. Gemini 래퍼 응답에서는 `candidates[0].content.parts[0].text` 안의 JSON을 추출한다.
+- **Output Constraint:** Google Search grounding과 `responseMimeType = "application/json"` 조합은 Gemini 2.5에서 지원되지 않으므로 MIME 강제는 사용하지 않는다. 대신 system/user prompt로 JSON-only 응답을 지시하고, Gemini 래퍼 응답의 `candidates[0].content.parts[0].text` 안에서 JSON 객체를 추출한다.
 - **Input Variables:** `artist_name`, `track_title`, `album_title`
 - **Album-first Rule:** `artist_name + track_title`로 수록 앨범을 먼저 식별한 뒤, 장르/평점/평론은 식별된 앨범 기준으로만 반환한다. `album_title`은 감지된 경우 보조 힌트로만 사용한다.
 - **Community Search Fallback:** 직접 평점 페이지를 우선 검색한다. 접근 불가 또는 검색 누락 시 Reddit과 HipHople 검색 결과를 우회 탐색 및 교차검증에 사용할 수 있다. 단일 커뮤니티 게시글의 숫자는 평점으로 채택하지 않는다. 여러 독립 검색 결과가 같은 앨범 단위 점수와 원출처를 일관되게 인용할 때만 간접 확인값으로 사용하고 `reliability_notes`에 남긴다.
@@ -314,8 +314,7 @@ Validation/Parsing:
   ],
   "generationConfig": {
     "temperature": 0.2,
-    "maxOutputTokens": 1024,
-    "responseMimeType": "application/json"
+    "maxOutputTokens": 1024
   }
 }
 ```
@@ -506,7 +505,7 @@ sealed interface AppResult<out T> {
 - 수동 입력 폴백 시나리오 검증 (권한 없음 -> 인라인 입력 -> 저장 가능)
 - `genreSource` 분기 검증 (`RYM`, `LLM`, `MANUAL`, `UNKNOWN`)
 - 앨범 기준 평점 파싱 검증 (`rymRating`, `pitchforkScore`, `metacriticScore`, `aotyScore` nullable 처리)
-- 요청 빌더 검증: `GeminiRequestBuilder`가 앨범 식별 지시, 출처별 평점 키, `missing_sources`, `responseMimeType = "application/json"`을 포함해야 한다.
+- 요청 빌더 검증: `GeminiRequestBuilder`가 앨범 식별 지시, 출처별 평점 키, `missing_sources`, Google Search grounding tool을 포함하고, Gemini 2.5 호환을 위해 `responseMimeType`은 포함하지 않아야 한다.
 
 ### 7.2 도구
 

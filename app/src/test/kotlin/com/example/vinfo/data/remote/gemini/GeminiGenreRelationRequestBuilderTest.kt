@@ -3,6 +3,7 @@ package com.example.vinfo.data.remote.gemini
 import okio.Buffer
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -35,7 +36,7 @@ class GeminiGenreRelationRequestBuilderTest {
         assertTrue(systemText.contains("relation_strength"))
         assertTrue(systemText.contains("Do not invent"))
         assertTrue(userText.contains("Selected genre: Hyperpop"))
-        assertEquals("application/json", generationConfig.getString("responseMimeType"))
+        assertFalse(generationConfig.has("responseMimeType"))
         assertEquals(0, googleSearchTool.length())
     }
 }

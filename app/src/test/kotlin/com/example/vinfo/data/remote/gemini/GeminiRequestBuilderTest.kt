@@ -3,6 +3,7 @@ package com.example.vinfo.data.remote.gemini
 import okio.Buffer
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -52,6 +53,6 @@ class GeminiRequestBuilderTest {
         assertTrue(userText.contains("identify the matching album"))
         assertTrue(userText.contains("site:reddit.com"))
         assertTrue(userText.contains("site:hiphople.com"))
-        assertEquals("application/json", generationConfig.getString("responseMimeType"))
+        assertFalse(generationConfig.has("responseMimeType"))
     }
 }
