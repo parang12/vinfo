@@ -74,6 +74,10 @@ class GeminiTrackMetadataRepository(
 
     private fun Throwable.toGeminiErrorMessage(): String {
         if (this is HttpException) {
+            if (code() == 429) {
+                return "Gemini API 사용량 한도를 초과했습니다. AI Studio에서 현재 사용량과 결제/요금제 설정을 확인해 주세요."
+            }
+
             val body = response()?.errorBody()?.string()
             val detail = body?.extractGeminiErrorMessage()
                 ?: message()

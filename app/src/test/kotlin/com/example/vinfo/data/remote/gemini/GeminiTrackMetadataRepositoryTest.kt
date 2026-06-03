@@ -54,4 +54,48 @@ class GeminiTrackMetadataRepositoryTest {
             server.shutdown()
         }
     }
+
+    @Test
+    fun `fetchTrackMetadata explains Gemini quota errors in Korean`() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(429)
+                .setBody(
+                    """
+                    {
+                      "error": {
+                        "code": 429,
+                        "message": "You exceeded your current quota, please check your plan and billing details."
+                      }
+                    }
+                    """.trimIndent()
+                )
+        )
+
+        try {
+            val service = Retrofit.Builder()
+                .baseUrl(server.url("/"))
+                .client(OkHttpClient())
+                .addConverterFactory(ScalarsConverterFactory.create())
+                .build()
+                .create(GeminiApiService::class.java)
+            val repository = GeminiTrackMetadataRepository(serviceFactory = { service })
+
+            val result = repository.fetchTrackMetadata(
+                artist = "Artist",
+                title = "Title",
+                album = null,
+                apiKey = "test-key"
+            )
+
+            assertTrue(result is AppResult.Error)
+            val message = (result as AppResult.Error).message
+            assertTrue(message.contains("Gemini API 사용량 한도를 초과했습니다."))
+            assertTrue(message.contains("AI Studio"))
+        } finally {
+            server.shutdown()
+        }
+    }
 }
