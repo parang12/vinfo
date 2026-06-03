@@ -7,11 +7,13 @@ import com.example.vinfo.domain.repository.TrackMetadataRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import retrofit2.HttpException
 import java.io.IOException
 
 class GeminiTrackMetadataRepository(
-    private val jsonParser: GeminiJsonParser = GeminiJsonParser()
+    private val jsonParser: GeminiJsonParser = GeminiJsonParser(),
+    private val serviceFactory: (String) -> GeminiApiService = GeminiApiClientFactory::create
 ) : TrackMetadataRepository {
 
     override suspend fun fetchTrackMetadata(
@@ -24,11 +26,13 @@ class GeminiTrackMetadataRepository(
             return@withContext AppResult.Error("Gemini API Key가 비어 있습니다.")
         }
 
-        val service = GeminiApiClientFactory.create(apiKey)
+        val service = serviceFactory(apiKey)
 
         val rawResponse = retryNetworkCall {
             service.generate(GeminiRequestBuilder.DEFAULT_MODEL, apiKey, GeminiRequestBuilder.build(artist, title, album))
-        } ?: return@withContext AppResult.Error("Gemini API 응답을 가져오지 못했습니다.")
+        }.getOrElse { throwable ->
+            return@withContext AppResult.Error(throwable.toGeminiErrorMessage(), throwable)
+        }
 
         when (val parsed = jsonParser.parseTrackMetadata(rawResponse)) {
             is AppResult.Success -> AppResult.Success(parsed.data.toDomainMetadata())
@@ -37,23 +41,23 @@ class GeminiTrackMetadataRepository(
         }
     }
 
-    private suspend fun <T> retryNetworkCall(block: suspend () -> T): T? {
+    private suspend fun <T> retryNetworkCall(block: suspend () -> T): Result<T> {
         val maxAttempts = 3
         var lastError: Throwable? = null
 
         repeat(maxAttempts) { attempt ->
             try {
-                return block()
+                return Result.success(block())
             } catch (throwable: Throwable) {
                 lastError = throwable
                 if (!shouldRetry(throwable) || attempt == maxAttempts - 1) {
-                    return null
+                    return Result.failure(throwable)
                 }
                 delay(backoffMillis(attempt))
             }
         }
 
-        return null
+        return Result.failure(lastError ?: IllegalStateException("Gemini API 호출 실패"))
     }
 
     private fun shouldRetry(throwable: Throwable): Boolean {
@@ -66,6 +70,31 @@ class GeminiTrackMetadataRepository(
 
     private fun backoffMillis(attempt: Int): Long {
         return 500L shl attempt
+    }
+
+    private fun Throwable.toGeminiErrorMessage(): String {
+        if (this is HttpException) {
+            val body = response()?.errorBody()?.string()
+            val detail = body?.extractGeminiErrorMessage()
+                ?: message()
+                ?: "HTTP 오류"
+            return "Gemini API 오류 ${code()}: $detail"
+        }
+
+        if (this is IOException) {
+            return "Gemini API 네트워크 오류: ${message ?: "연결을 확인해 주세요."}"
+        }
+
+        return "Gemini API 호출 오류: ${message ?: "알 수 없는 오류"}"
+    }
+
+    private fun String.extractGeminiErrorMessage(): String? {
+        return runCatching {
+            JSONObject(this)
+                .optJSONObject("error")
+                ?.optString("message")
+                ?.takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 
     private fun com.example.vinfo.data.remote.perplexity.TrackMetadataDto.toDomainMetadata(): TrackMetadata {

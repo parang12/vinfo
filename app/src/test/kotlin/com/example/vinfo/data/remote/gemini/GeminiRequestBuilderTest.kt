@@ -10,7 +10,7 @@ class GeminiRequestBuilderTest {
 
     @Test
     fun `build asks Gemini to identify the album and return album-based metadata JSON`() {
-        assertEquals("gemini-2.5-flash-lite", GeminiRequestBuilder.DEFAULT_MODEL)
+        assertEquals("gemini-3.1-flash-lite", GeminiRequestBuilder.DEFAULT_MODEL)
 
         val body = GeminiRequestBuilder.build(
             artist = "Test Artist",

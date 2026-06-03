@@ -8,7 +8,7 @@ import org.json.JSONObject
 object GeminiRequestBuilder {
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
-    const val DEFAULT_MODEL = "gemini-2.5-flash-lite"
+    const val DEFAULT_MODEL = "gemini-3.1-flash-lite"
 
     fun build(artist: String, title: String, album: String?, model: String = DEFAULT_MODEL): RequestBody {
         val body = JSONObject()

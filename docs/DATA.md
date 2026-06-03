@@ -281,7 +281,7 @@ Validation/Parsing:
 - **Method:** `POST`
 - **Endpoint:** `https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
 - **Runtime Repository:** `GeminiTrackMetadataRepository`
-- **Runtime Model:** `gemini-2.5-flash-lite`
+- **Runtime Model:** `gemini-3.1-flash-lite`
 - **Search Grounding:** `tools: [{ "google_search": {} }]`를 활성화하여 실시간 웹 검색 결과를 근거로 사용한다.
 - **Output Constraint:** `generationConfig.responseMimeType = "application/json"`을 사용하고, 응답 본문은 JSON-only로 제한한다. Gemini 래퍼 응답에서는 `candidates[0].content.parts[0].text` 안의 JSON을 추출한다.
 - **Input Variables:** `artist_name`, `track_title`, `album_title`
