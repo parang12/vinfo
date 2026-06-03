@@ -90,6 +90,68 @@ class GenreMapUiStateDiscoveryTest {
     }
 
     @Test
+    fun `fromArchive activates blues genre from blues album tags`() {
+        val state = GenreMapUiState.fromArchive(
+            listOf(
+                DummyArchive(
+                    id = "album-1",
+                    title = "Album",
+                    artist = "Artist",
+                    genres = listOf("Delta Blues"),
+                    date = "2026.06.03"
+                )
+            )
+        )
+
+        val bluesNode = state.nodes.firstOrNull { it.label == "Blues" }
+
+        assertNotNull(bluesNode)
+        assertEquals(GenreMapNodeType.Activated, bluesNode!!.type)
+    }
+
+    @Test
+    fun `withDiscoveries marks already visible nearby nodes with searched relation evidence`() {
+        val baseState = GenreMapUiState.fromArchive(
+            listOf(
+                DummyArchive(
+                    id = "album-1",
+                    title = "Album",
+                    artist = "Artist",
+                    genres = listOf("Jazz"),
+                    date = "2026.06.03"
+                )
+            )
+        )
+
+        val updatedState = baseState.withDiscoveries(
+            listOf(
+                ConfirmedGenreDiscovery(
+                    sourceGenre = "Jazz",
+                    candidates = listOf(
+                        GenreRelationCandidate(
+                            genreName = "Blues",
+                            score = 0.82f,
+                            relationType = "influence",
+                            evidence = "Jazz and blues share historically documented roots."
+                        )
+                    )
+                )
+            )
+        )
+
+        val bluesNode = updatedState.nodes.first { it.label == "Blues" }
+        val bluesEdge = updatedState.edges.first {
+            setOf(it.fromId, it.toId) == setOf("jazz", "blues")
+        }
+
+        assertEquals("탐색한 연결 후보", bluesNode.note)
+        assertEquals("검색으로 확인", bluesNode.lastActivatedText)
+        assertEquals(0.82f, bluesEdge.relationScore, 0.001f)
+        assertEquals("Jazz and blues share historically documented roots.", bluesEdge.evidence)
+        assertTrue(bluesEdge.label.contains("강함"))
+    }
+
+    @Test
     fun `withDiscoveries spreads discovered nearby nodes away from existing map nodes`() {
         val baseState = GenreMapUiState.fromArchive(
             listOf(

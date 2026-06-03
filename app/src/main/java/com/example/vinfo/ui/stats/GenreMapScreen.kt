@@ -308,7 +308,8 @@ internal fun GenreMapUiState.withDiscoveries(
 
         discovery.candidates.forEachIndexed { index, candidate ->
             val candidateId = candidate.genreName.toNodeId()
-            if (updatedNodes.none { it.id == candidateId }) {
+            val existingNodeIndex = updatedNodes.indexOfFirst { it.id == candidateId }
+            if (existingNodeIndex < 0) {
                 val candidatePosition = findOpenGenreNodePosition(
                     source = sourceNode.position,
                     candidateIndex = index,
@@ -326,6 +327,15 @@ internal fun GenreMapUiState.withDiscoveries(
                     position = candidatePosition,
                     accessibilityLabel = "${candidate.genreName}, 연결 후보, 연관성 ${candidate.strength.koreanLabel}"
                 )
+            } else {
+                val existingNode = updatedNodes[existingNodeIndex]
+                if (existingNode.type == GenreMapNodeType.Adjacent) {
+                    updatedNodes[existingNodeIndex] = existingNode.copy(
+                        note = "탐색한 연결 후보",
+                        lastActivatedText = "검색으로 확인",
+                        accessibilityLabel = "${existingNode.label}, 연결 후보, 연관성 ${candidate.strength.koreanLabel}"
+                    )
+                }
             }
 
             val existingIndex = updatedEdges.indexOfFirst {
@@ -340,7 +350,8 @@ internal fun GenreMapUiState.withDiscoveries(
                 relationScore = candidate.score
             )
             if (existingIndex >= 0) {
-                if (updatedEdges[existingIndex].relationScore < candidate.score) {
+                val existingEdge = updatedEdges[existingIndex]
+                if (existingEdge.label == "연결 후보" || existingEdge.relationScore < candidate.score) {
                     updatedEdges[existingIndex] = discoveredEdge
                 }
             } else {
@@ -406,6 +417,7 @@ private fun String.toMapGenreName(): String? {
     return when {
         normalized.isBlank() || normalized == "unknown" -> null
         "jazz rap" in normalized -> "Jazz Rap"
+        "blues" in normalized -> "Blues"
         "neo soul" in normalized -> "Neo Soul"
         "boom bap" in normalized -> "Boom Bap"
         "pop rap" in normalized -> "Pop Rap"
