@@ -37,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import com.example.vinfo.ui.permission.NotificationPermissionBanner
@@ -68,10 +69,11 @@ import com.example.vinfo.ui.permission.openNotificationListenerSettings
 import com.example.vinfo.ui.permission.openAppNotificationSettings
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
+import com.example.vinfo.data.settings.ThemeMode
+import com.example.vinfo.data.settings.ThemeSettingsStore
 import com.example.vinfo.ui.stats.GenreMapScreen
 import com.example.vinfo.ui.stats.GenreMapViewModel
 import com.example.vinfo.ui.theme.VinfoPrimary
-import com.example.vinfo.ui.theme.VinfoSurface
 import com.example.vinfo.ui.theme.VinfoTheme
 import kotlinx.coroutines.flow.collectLatest
 
@@ -80,8 +82,21 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            VinfoTheme {
-                MainScreen()
+            val context = LocalContext.current
+            val themeSettingsStore = remember(context) { ThemeSettingsStore(context.applicationContext) }
+            val themeMode by themeSettingsStore.themeMode.collectAsState()
+            val systemDarkTheme = isSystemInDarkTheme()
+            val darkTheme = when (themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> systemDarkTheme
+            }
+
+            VinfoTheme(darkTheme = darkTheme) {
+                MainScreen(
+                    themeMode = themeMode,
+                    onThemeModeChange = themeSettingsStore::saveThemeMode
+                )
             }
         }
     }
@@ -94,7 +109,10 @@ sealed class BottomNavItem(val route: String, val label: String, val icon: Image
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onThemeModeChange: (ThemeMode) -> Boolean = { true }
+) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -141,7 +159,7 @@ fun MainScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(VinfoSurface)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // 알림 리스너 권한 배너 (상단 오버레이)
         val ctx = LocalContext.current
@@ -259,7 +277,9 @@ fun MainScreen() {
             }
             composable(Route.Settings.path) {
                 SettingsScreen(
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    themeMode = themeMode,
+                    onThemeModeChange = onThemeModeChange
                 )
             }
         }

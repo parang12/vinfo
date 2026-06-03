@@ -15,9 +15,15 @@ import androidx.compose.ui.platform.LocalContext
 private val DarkColorScheme = darkColorScheme(
     primary = VinfoPrimary,
     primaryContainer = VinfoPrimaryContainer,
-    surface = VinfoOnSurface, // Placeholder for dark mode
-    onSurface = VinfoSurface,
-    background = Color(0xFF121212)
+    onPrimary = Color.White,
+    onPrimaryContainer = Color.White,
+    surface = Color(0xFF171A21),
+    onSurface = Color(0xFFE8EAF0),
+    surfaceVariant = Color(0xFF252A35),
+    onSurfaceVariant = Color(0xFFC7CBD6),
+    outlineVariant = Color(0xFF464C5C),
+    error = Color(0xFFFFB4AB),
+    background = Color(0xFF101318)
 )
 
 private val LightColorScheme = lightColorScheme(

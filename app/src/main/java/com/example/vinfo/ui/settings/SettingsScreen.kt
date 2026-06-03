@@ -30,7 +30,6 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -45,27 +44,32 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.statusBarsPadding
 import com.example.vinfo.data.settings.ApiKeyStore
+import com.example.vinfo.data.settings.ThemeMode
+import com.example.vinfo.data.settings.ThemeSettingsStore
 import com.example.vinfo.ui.component.FloatingBackButton
 import com.example.vinfo.ui.theme.VinfoTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
+    onThemeModeChange: (ThemeMode) -> Boolean = { true }
 ) {
     val context = LocalContext.current
     val apiKeyStore = remember(context) { ApiKeyStore(context.applicationContext) }
     var geminiKey by remember { mutableStateOf(apiKeyStore.getGeminiApiKey()) }
     var apiKeySaveMessage by remember { mutableStateOf<String?>(null) }
     var apiKeySaveMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
-    var selectedTheme by remember { mutableIntStateOf(0) }
+    var themeSaveMessage by remember { mutableStateOf<String?>(null) }
+    var themeSaveMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
 
-    val themeOptions = listOf("라이트 모드", "다크 모드", "시스템 기본값")
+    val themeOptions = listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9FF))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -90,12 +94,12 @@ fun SettingsScreen(
                             text = "알림 접근 권한",
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF181C23)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = "재생 중인 음악 알림을 읽어 아티스트와 곡 정보를 감지합니다.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF414755)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -184,26 +188,49 @@ fun SettingsScreen(
                             .padding(4.dp)
                     ) {
                         themeOptions.forEachIndexed { index, title ->
-                            val selected = selectedTheme == index
+                            val selected = themeMode == title
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(
-                                        if (selected) Color.White else Color.Transparent
+                                        if (selected) MaterialTheme.colorScheme.surface else Color.Transparent
                                     )
-                                    .clickable { selectedTheme = index },
+                                    .clickable {
+                                        val saved = onThemeModeChange(title)
+                                        if (saved) {
+                                            themeSaveMessage = "${title.label}가 적용되었습니다."
+                                            themeSaveMessageColor = Color(0xFF007A3D)
+                                        } else {
+                                            themeSaveMessage = "테마 설정을 저장하지 못했습니다."
+                                            themeSaveMessageColor = Color(0xFFBA1A1A)
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = title,
+                                    text = title.label,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selected) Color(0xFF181C23) else Color(0xFF6B7280)
+                                    color = if (selected) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
                                 )
                             }
                         }
+                    }
+
+                    themeSaveMessage?.let { message ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = themeSaveMessageColor,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(20.dp))
@@ -282,7 +309,7 @@ fun SettingsSectionTitle(title: String) {
         text = title,
         style = MaterialTheme.typography.titleLarge,
         fontWeight = FontWeight.Bold,
-        color = Color(0xFF181C23),
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(bottom = 12.dp, top = 4.dp)
     )
 }
@@ -292,7 +319,7 @@ fun SettingsCard(content: @Composable () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -313,7 +340,7 @@ fun SettingsInputItem(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF374151),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(bottom = 6.dp)
         )
         TextField(
@@ -324,13 +351,13 @@ fun SettingsInputItem(
                 Text(
                     text = placeholder,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFFBEC5D0)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             shape = RoundedCornerShape(14.dp),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFFEEF0F8),
-                unfocusedContainerColor = Color(0xFFEEF0F8),
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedIndicatorColor = Color.Transparent,
                 unfocusedIndicatorColor = Color.Transparent
             ),
@@ -357,7 +384,7 @@ fun SettingsActionRow(
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            color = titleColor
+            color = if (titleColor == Color(0xFF181C23)) MaterialTheme.colorScheme.onSurface else titleColor
         )
         Icon(
             Icons.Filled.ChevronRight,
