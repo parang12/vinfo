@@ -397,9 +397,9 @@ private fun FloatingBottomNavigation(
             .fillMaxWidth()
             .padding(horizontal = 28.dp, vertical = 16.dp),
         shape = RoundedCornerShape(999.dp),
-        color = Color.White.copy(alpha = 0.94f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         shadowElevation = 14.dp,
-        border = BorderStroke(1.dp, Color(0xFFE4E7F0).copy(alpha = 0.7f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
     ) {
         Row(
             modifier = Modifier
@@ -426,7 +426,7 @@ private fun FloatingBottomNavigation(
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(999.dp))
-                                .background(Color(0xFFDCEBFF))
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
                                 .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -456,13 +456,13 @@ private fun FloatingBottomNavigation(
                                 item.icon,
                                 contentDescription = item.label,
                                 modifier = Modifier.size(18.dp),
-                                tint = Color(0xFF9CA3AF)
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = item.label,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Normal,
-                                color = Color(0xFF9CA3AF)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

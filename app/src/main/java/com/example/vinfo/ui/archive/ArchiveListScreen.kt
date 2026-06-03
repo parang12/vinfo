@@ -100,7 +100,7 @@ fun ArchiveListScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9FF))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // 콘텐츠
         LazyColumn(
@@ -118,7 +118,7 @@ fun ArchiveListScreen(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFEEF0F8)
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
                     TextField(
                         value = searchQuery,
@@ -213,7 +213,7 @@ fun ArchiveListScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 28.dp, vertical = 16.dp),
                 shape = RoundedCornerShape(999.dp),
-                color = Color.White.copy(alpha = 0.97f),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.97f),
                 shadowElevation = 14.dp
             ) {
                 Row(
@@ -235,21 +235,21 @@ fun ArchiveListScreen(
                             .height(50.dp),
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFEEF0F8)
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color(0xFF414755)
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "취소",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF414755)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
 
@@ -268,7 +268,7 @@ fun ArchiveListScreen(
                         shape = RoundedCornerShape(999.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFFBA1A1A),
-                            disabledContainerColor = Color(0xFFEEF0F8)
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     ) {
                         Icon(
@@ -300,9 +300,9 @@ private fun ArchiveGenreDistributionBar(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -317,14 +317,14 @@ private fun ArchiveGenreDistributionBar(
                         text = "장르 비율",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF181C23)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = selectedSegment?.let {
                             "${it.genre} ${it.percent}% · 앨범 ${it.albumCount}장"
                         } ?: "저장된 장르 데이터가 없습니다.",
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -416,7 +416,7 @@ fun ArchiveItem(
                 else Modifier
             ),
         shape = RoundedCornerShape(16.dp),
-        color = if (isSelected) Color(0xFFEEF4FF) else Color.White,
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
         shadowElevation = if (isSelected) 0.dp else 1.dp
     ) {
         Row(
@@ -431,7 +431,7 @@ fun ArchiveItem(
                     modifier = Modifier
                         .size(22.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) VinfoPrimary else Color(0xFFE4E7F0)),
+                        .background(if (isSelected) VinfoPrimary else MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isSelected) {
@@ -452,13 +452,13 @@ fun ArchiveItem(
                     text = track.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF181C23)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = track.artist,
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

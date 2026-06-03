@@ -62,9 +62,9 @@ fun Modifier.shimmerEffect(): Modifier = composed {
     )
 
     val shimmerColors = listOf(
-        Color(0xFFEEF0F8),
-        Color(0xFFF9F9FF),
-        Color(0xFFEEF0F8),
+        MaterialTheme.colorScheme.surfaceVariant,
+        MaterialTheme.colorScheme.background,
+        MaterialTheme.colorScheme.surfaceVariant,
     )
 
     val brush = Brush.linearGradient(
@@ -105,8 +105,8 @@ fun FloatingCircleButton(
             .size(44.dp)
             .shadow(elevation = 8.dp, shape = CircleShape, ambientColor = Color.Black.copy(alpha = 0.12f))
             .clip(CircleShape)
-            .background(Color.White.copy(alpha = 0.92f))
-            .border(width = 1.dp, color = Color(0xFFE4E7F0), shape = CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+            .border(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant, shape = CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -161,7 +161,7 @@ fun HomeTopOverlay(
             text = "Vinfo",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF181C23)
+            color = MaterialTheme.colorScheme.onSurface
         )
         FloatingSettingsButton(onClick = onSettingsClick)
     }
@@ -180,11 +180,11 @@ fun GenreChip(
     val modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
     val containerColor = when {
         isSelected || isPrimary -> Color(0xFF0058BC)
-        else -> Color(0xFFEEF0F8)
+        else -> MaterialTheme.colorScheme.surfaceVariant
     }
     val contentColor = when {
         isSelected || isPrimary -> Color.White
-        else -> Color(0xFF414755)
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(
         modifier = modifier,
@@ -206,7 +206,7 @@ fun GenreChip(
 fun VinfoCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
-    containerColor: Color = Color.White,
+    containerColor: Color? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val baseModifier = modifier
@@ -219,13 +219,13 @@ fun VinfoCard(
         )
         .border(
             width = 1.dp,
-            color = Color(0xFFC1C6D7).copy(alpha = 0.4f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
             shape = VinfoCardShape
         )
     val finalModifier = if (onClick != null) baseModifier.clickable(onClick = onClick) else baseModifier
     Card(
         modifier = finalModifier,
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+        colors = CardDefaults.cardColors(containerColor = containerColor ?: MaterialTheme.colorScheme.surface),
         shape = VinfoCardShape
     ) {
         Column(
@@ -245,7 +245,7 @@ fun MetadataCard(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF181C23)
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(14.dp))
         content()
@@ -267,7 +267,7 @@ fun SectionHeader(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF181C23)
+            color = MaterialTheme.colorScheme.onSurface
         )
         if (actionLabel != null) {
             Text(

@@ -100,7 +100,7 @@ fun DetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9FF))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // 콘텐츠
         LazyColumn(
@@ -115,7 +115,7 @@ fun DetailScreen(
         ) {
             // 히어로 섹션 - 앨범 아트 + 메타데이터
             item {
-                VinfoCard(containerColor = Color(0xFFF1F3FE)) {
+                VinfoCard(containerColor = MaterialTheme.colorScheme.surfaceVariant) {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         DetailAlbumArtwork(albumArtUrl = rememberedAlbumArtUrl)
 
@@ -128,7 +128,7 @@ fun DetailScreen(
                                 text = detailTitle,
                                 style = MaterialTheme.typography.titleLarge.copy(lineHeight = 32.sp),
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF181C23),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 textAlign = TextAlign.Center,
                                 maxLines = 3,
                                 overflow = TextOverflow.Ellipsis
@@ -137,7 +137,7 @@ fun DetailScreen(
                                 text = detailArtist,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFF414755),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis
@@ -146,7 +146,7 @@ fun DetailScreen(
                                 Text(
                                     text = detailTrackTitle,
                                     style = MaterialTheme.typography.labelMedium,
-                                    color = Color(0xFF6B7280),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis
@@ -163,14 +163,14 @@ fun DetailScreen(
                     Text(
                         text = "대표 장르",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     if (genreLabels.isEmpty()) {
                         Text(
                             text = "확인된 앨범 장르가 아직 없습니다.",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     } else {
                         FlowRow(
@@ -194,7 +194,7 @@ fun DetailScreen(
                             Text(
                                 text = "확인된 앨범 평점이 아직 없습니다.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF6B7280)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         } else {
                             FlowRow(
@@ -223,7 +223,7 @@ fun DetailScreen(
                         text = criticsSummary,
                         style = MaterialTheme.typography.bodyMedium,
                         lineHeight = 22.sp,
-                        color = Color(0xFF414755)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -299,7 +299,7 @@ fun DetailScreen(
                 Text(
                     text = "Vinfo AI가 수집한 정보입니다. 데이터는 공개 음악 데이터베이스 및 알고리즘 분석을 통해 제공됩니다.",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -440,7 +440,7 @@ private fun DetailAlbumArtworkFallback() {
         modifier = Modifier
             .size(84.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.92f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
             .rotate(-32f)
             .offset(x = (-88).dp, y = (-70).dp)
     )
@@ -457,7 +457,7 @@ fun DetailMetricCard(
     label: String,
     value: String,
     unit: String = "",
-    valueColor: Color = Color(0xFF181C23)
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -466,7 +466,7 @@ fun DetailMetricCard(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.Bottom) {
@@ -480,7 +480,7 @@ fun DetailMetricCard(
                 Text(
                     text = unit,
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF6B7280),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 3.dp)
                 )
             }
@@ -494,7 +494,7 @@ fun VerticalScoreDivider() {
         modifier = Modifier
             .width(1.dp)
             .height(44.dp)
-            .background(Color(0xFFC1C6D7).copy(alpha = 0.4f))
+            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     )
 }
 
@@ -508,7 +508,7 @@ fun GuideItem(icon: ImageVector, title: String, text: String) {
             modifier = Modifier
                 .size(36.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFFEEF4FF)),
+                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -527,12 +527,12 @@ fun GuideItem(icon: ImageVector, title: String, text: String) {
                 text = title,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF181C23)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = text,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF414755),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 20.sp
             )
         }
@@ -549,7 +549,7 @@ private fun LyricsContent(
         isLoading -> Text(
             text = "가사를 가져오는 중입니다.",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         !lyrics.isNullOrBlank() -> SelectionContainer {
             Column(
@@ -566,7 +566,7 @@ private fun LyricsContent(
                                 fontStyle = FontStyle.Italic,
                                 fontWeight = FontWeight.Medium
                             ),
-                            color = Color(0xFF181C23),
+                            color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.padding(vertical = 3.dp)
                         )
@@ -577,7 +577,7 @@ private fun LyricsContent(
         else -> Text(
             text = errorMessage ?: "가사를 찾을 수 없습니다.",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF6B7280)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

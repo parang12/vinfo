@@ -63,7 +63,7 @@ fun GenreStatsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9FF))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // 콘텐츠
         LazyColumn(
@@ -83,12 +83,12 @@ fun GenreStatsScreen(
                         text = "장르 통계",
                         style = MaterialTheme.typography.displayLarge,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF181C23)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "나의 컬렉션 분석 결과입니다.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -123,13 +123,13 @@ fun GenreStatsScreen(
                                 text = "$totalAlbums",
                                 style = MaterialTheme.typography.displayLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF181C23),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 44.sp
                             )
                             Text(
                                 text = "보관함 앨범",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color(0xFF6B7280)
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -142,7 +142,7 @@ fun GenreStatsScreen(
                         text = "장르 분포",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF181C23)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -179,7 +179,7 @@ fun GenreStatsScreen(
                                 text = "$percent%",
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF181C23)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -192,7 +192,7 @@ fun GenreStatsScreen(
                     Text(
                         text = "가장 많이 들은 장르",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
@@ -213,7 +213,7 @@ fun GenreStatsScreen(
                         Text(
                             text = "컬렉션과 일관됨",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Box(
@@ -238,7 +238,7 @@ fun GenreStatsScreen(
                     Text(
                         text = "전체 보관 앨범",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
@@ -246,7 +246,7 @@ fun GenreStatsScreen(
                             text = "$totalAlbums",
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF181C23)
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Spacer(modifier = Modifier.height(10.dp))
@@ -255,13 +255,13 @@ fun GenreStatsScreen(
                             modifier = Modifier
                                 .width(16.dp)
                                 .height(2.dp)
-                                .background(Color(0xFF6B7280))
+                                .background(MaterialTheme.colorScheme.onSurfaceVariant)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "컬렉션과 일관됨",
                             style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Box(

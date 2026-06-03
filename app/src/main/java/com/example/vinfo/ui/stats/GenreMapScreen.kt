@@ -469,7 +469,7 @@ internal fun GenreMapScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9FF))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         FullFlowMapCanvas(
             modifier = Modifier
@@ -537,7 +537,7 @@ internal fun GenreMapScreen(
                 Text(
                     text = edge.label,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF181C23)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             },
             text = {
@@ -545,12 +545,12 @@ internal fun GenreMapScreen(
                     Text(
                         text = edge.evidence,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF4B5563)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = "연관성 ${RelationStrength.fromScore(edge.relationScore).koreanLabel}. 노드를 탭해 주변 흐름을 탐색할 수 있습니다.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             },
@@ -581,9 +581,9 @@ private fun MapTopPanel(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.94f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -613,7 +613,7 @@ private fun MapTopPanel(
                         text = mapState.subtitle,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF181C23)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 FloatingSettingsButton(onClick = onSettingsClick)
@@ -644,9 +644,9 @@ private fun MapFloatingControls(
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(18.dp),
-        color = Color.White.copy(alpha = 0.94f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         shadowElevation = 6.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
@@ -657,7 +657,7 @@ private fun MapFloatingControls(
                 text = "${(scale * 100).roundToInt()}%",
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = "+",
@@ -683,7 +683,7 @@ private fun MapFloatingControls(
                 text = "중앙",
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFEEF4FF))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
                     .clickable(onClick = onRecenter)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 style = MaterialTheme.typography.labelSmall,
@@ -707,9 +707,9 @@ private fun TasteFlowBottomSheet(
             .fillMaxWidth()
             .padding(horizontal = 0.dp),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        color = Color.White.copy(alpha = 0.96f),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
         shadowElevation = 12.dp,
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE4E7F0))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier
@@ -723,7 +723,7 @@ private fun TasteFlowBottomSheet(
                     .width(34.dp)
                     .height(4.dp)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(Color(0xFFE4E7F0))
+                    .background(MaterialTheme.colorScheme.outlineVariant)
             )
             Spacer(modifier = Modifier.height(10.dp))
             Row(
@@ -736,14 +736,14 @@ private fun TasteFlowBottomSheet(
                         text = selectedNode?.label ?: "분석할 장르를 지도에서 터치하세요",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF181C23)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = selectedNode?.note
                             ?: "저장한 앨범을 바탕으로 장르가 어떻게 이어지는지 확인할 수 있습니다.",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 selectedNode?.let {
@@ -776,7 +776,7 @@ private fun TasteFlowBottomSheet(
                     text = "최근 저장한 앨범",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     text = "자동 반영됨",
@@ -790,7 +790,7 @@ private fun TasteFlowBottomSheet(
                 Text(
                     text = "보관함에 앨범을 저장하면 이곳에 표시됩니다.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF9CA3AF)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 recentAlbums.forEach { album ->
@@ -820,7 +820,7 @@ private fun NearbyGenreDiscoveryDialog(
             Text(
                 text = "${state.selectedGenre.orEmpty()} 주변 장르",
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF181C23)
+                color = MaterialTheme.colorScheme.onSurface
             )
         },
         text = {
@@ -828,7 +828,7 @@ private fun NearbyGenreDiscoveryDialog(
                 Text(
                     text = "추가할 장르만 선택해서 지도에 반영할 수 있습니다.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 state.errorMessage?.let { message ->
                     Text(
@@ -841,7 +841,7 @@ private fun NearbyGenreDiscoveryDialog(
                     Text(
                         text = "확인 가능한 주변 장르를 찾지 못했습니다.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 if (state.candidates.isNotEmpty()) {
@@ -851,13 +851,13 @@ private fun NearbyGenreDiscoveryDialog(
                             modifier = Modifier.weight(1f),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
                             text = "연관성",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     state.candidates.forEach { candidate ->
@@ -892,7 +892,7 @@ private fun NearbyGenreDiscoveryDialog(
                                 text = candidate.genreName,
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFF181C23)
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = candidate.strength.koreanLabel,
@@ -909,7 +909,7 @@ private fun NearbyGenreDiscoveryDialog(
                     Text(
                         text = "선택한 장르 ${selectedCandidates.size}개",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF6B7280)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -942,8 +942,10 @@ private fun FullFlowMapCanvas(
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(
-        modifier = modifier.background(Color(0xFFF9F9FF))
+        modifier = modifier.background(MaterialTheme.colorScheme.background)
     ) {
+        val canvasBackground = MaterialTheme.colorScheme.background
+        val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)
         val density = LocalDensity.current
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
@@ -966,7 +968,7 @@ private fun FullFlowMapCanvas(
         }
 
         Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(Color(0xFFF9F9FF))
+            drawRect(canvasBackground)
 
             val gridStep = 72f * scale
             val gridOffsetX = (pan.x % gridStep)
@@ -974,7 +976,7 @@ private fun FullFlowMapCanvas(
             var x = gridOffsetX - gridStep
             while (x < size.width + gridStep) {
                 drawLine(
-                    color = Color(0xFFECEFF7),
+                    color = gridColor,
                     start = Offset(x, 0f),
                     end = Offset(x, size.height),
                     strokeWidth = 1f
@@ -984,7 +986,7 @@ private fun FullFlowMapCanvas(
             var y = gridOffsetY - gridStep
             while (y < size.height + gridStep) {
                 drawLine(
-                    color = Color(0xFFECEFF7),
+                    color = gridColor,
                     start = Offset(0f, y),
                     end = Offset(size.width, y),
                     strokeWidth = 1f
@@ -1069,7 +1071,7 @@ private fun MapLaneLabel(
         text = text,
         modifier = modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(Color.White.copy(alpha = 0.72f))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
             .padding(horizontal = 10.dp, vertical = 5.dp),
         style = MaterialTheme.typography.labelSmall,
         fontWeight = FontWeight.ExtraBold,
@@ -1104,7 +1106,7 @@ private fun FlowNodeBubble(
                     contentDescription = node.accessibilityLabel
                 },
             shape = CircleShape,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = if (selected) 8.dp else 3.dp,
             border = androidx.compose.foundation.BorderStroke(
                 width = if (selected) 2.dp else 1.dp,
@@ -1133,11 +1135,11 @@ private fun FlowNodeBubble(
             text = node.label,
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color.White.copy(alpha = 0.82f))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f))
                 .padding(horizontal = 8.dp, vertical = 3.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = if (node.type == GenreMapNodeType.Activated) Color(0xFF181C23) else Color(0xFF64748B)
+            color = if (node.type == GenreMapNodeType.Activated) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -1394,14 +1396,14 @@ private fun MapMetric(
             text = label,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF9CA3AF)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF181C23)
+            color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
@@ -1420,13 +1422,13 @@ private fun RecentAlbumRow(album: DummyArchive) {
                 text = album.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF181C23)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${album.artist} · ${album.date}",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         album.genres.firstOrNull { it.isNotBlank() }?.let { genre ->
@@ -1457,7 +1459,7 @@ private fun MiniFactChip(
     value: String,
 ) {
     Surface(
-        color = Color(0xFFF1F3FE),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shape = RoundedCornerShape(14.dp)
     ) {
         Column(
@@ -1466,14 +1468,14 @@ private fun MiniFactChip(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF6B7280)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF181C23)
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
     }

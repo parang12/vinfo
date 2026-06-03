@@ -48,7 +48,7 @@ fun NowPlayingScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9FF))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         val trackTitle = currentTrack?.title ?: "현재 재생 중인 곡을 감지하는 중"
         val trackArtist = currentTrack?.artist ?: "알림 접근 권한을 확인해 주세요"
@@ -67,7 +67,7 @@ fun NowPlayingScreen(
                 text = "Vinfo",
                 fontSize = 48.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF181C23),
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
         }
@@ -102,13 +102,13 @@ fun NowPlayingScreen(
                                     text = trackTitle,
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF181C23)
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = trackArtist,
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color(0xFF6B7280)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 if (!trackAlbum.isNullOrBlank()) {
                                     Spacer(modifier = Modifier.height(4.dp))
@@ -194,7 +194,7 @@ fun NowPlayingScreen(
                     Text(
                         text = statusMessage,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF6B7280),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
                 }
@@ -217,14 +217,14 @@ fun NowPlayingScreen(
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(20.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 1.dp
                     ) {
                         Text(
                             text = "아직 저장된 앨범이 없습니다.",
                             modifier = Modifier.padding(20.dp),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF6B7280)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -284,7 +284,7 @@ private fun AlbumArtwork(albumArtUrl: String?) {
                 .padding(16.dp)
                 .size(48.dp),
             shape = CircleShape,
-            color = Color.White.copy(alpha = 0.95f),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
             shadowElevation = 4.dp
         ) {
             Box(contentAlignment = Alignment.Center) {
@@ -379,7 +379,7 @@ fun SkeletonRecentCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White
+        color = MaterialTheme.colorScheme.surface
     ) {
         Row(modifier = Modifier.padding(20.dp)) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -402,7 +402,7 @@ fun RecentArchiveCard(item: DummyArchive) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 3.dp
     ) {
         Row(
@@ -419,18 +419,18 @@ fun RecentArchiveCard(item: DummyArchive) {
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF181C23)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = item.artist,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF414755)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = item.date,
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF6B7280)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -441,14 +441,14 @@ fun RecentArchiveCard(item: DummyArchive) {
                 item.genres.take(2).forEach { genre ->
                     Surface(
                         shape = RoundedCornerShape(999.dp),
-                        color = Color(0xFFEEF0F8)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Text(
                             text = genre,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF414755)
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
