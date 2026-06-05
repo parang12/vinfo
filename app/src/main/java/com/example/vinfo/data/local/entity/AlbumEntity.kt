@@ -64,9 +64,16 @@ data class AlbumEntity(
             metadata: TrackMetadata,
             savedAtMillis: Long = System.currentTimeMillis()
         ): AlbumEntity {
-            val primaryGenre = metadata.primaryGenre.displayNameOrNull()
-            val secondaryGenre = metadata.secondaryGenre?.displayNameOrNull()
-            val genres = listOfNotNull(primaryGenre, secondaryGenre)
+            val candidateGenres = metadata.genreCandidates
+                .filter { it.tier != GenreCandidateTier.MICRO }
+                .map { it.name.trim() }
+                .filter { it.isNotBlank() }
+                .distinct()
+            val primaryGenre = candidateGenres.firstOrNull()
+                ?: metadata.primaryGenre.displayNameOrNull()
+            val secondaryGenre = candidateGenres.drop(1).firstOrNull()
+                ?: metadata.secondaryGenre?.displayNameOrNull()
+            val genres = candidateGenres.ifEmpty { listOfNotNull(primaryGenre, secondaryGenre) }
             val resolvedAlbumTitle = metadata.album ?: track.album ?: track.title
 
             return AlbumEntity(

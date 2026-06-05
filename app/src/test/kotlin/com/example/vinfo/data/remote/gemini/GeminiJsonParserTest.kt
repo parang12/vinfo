@@ -296,4 +296,69 @@ class GeminiJsonParserTest {
         assertEquals(75, dto.metacriticScore)
         assertEquals(78, dto.aotyScore)
     }
+
+    @Test
+    fun `parseTrackMetadata rejects Gemini envelope when candidate text has no metadata JSON`() {
+        val json = """
+            {
+              "candidates": [
+                {
+                  "content": {
+                    "parts": [
+                      {
+                        "text": "I cannot verify the album ratings from the available sources."
+                      }
+                    ]
+                  },
+                  "finishReason": "STOP"
+                }
+              ],
+              "usageMetadata": {
+                "promptTokenCount": 100,
+                "candidatesTokenCount": 12
+              }
+            }
+        """.trimIndent()
+
+        val result = GeminiJsonParser().parseTrackMetadata(
+            json,
+            fallbackArtist = "Kanye West",
+            fallbackTitle = "Dark Fantasy",
+            fallbackAlbum = null
+        )
+
+        assertTrue(result is AppResult.Error)
+    }
+
+    @Test
+    fun `parseTrackMetadata accepts singular and album genre aliases`() {
+        val json = """
+            {
+              "artist": "Kanye West",
+              "title": "Through the Wire",
+              "album": "The College Dropout",
+              "genre": "Chipmunk Soul",
+              "album_genres": ["Hip Hop", "Pop Rap"],
+              "ratings": {
+                "rateYourMusic": "3.68 / 5",
+                "pitchforkScore": "8.2 / 10"
+              },
+              "summary": "소울 샘플과 회고적 랩 서사가 결합된 데뷔 앨범.",
+              "guide": "보컬 샘플의 질감과 드럼 배치를 중심으로 감상한다.",
+              "samples": ["Chaka Khan - Through the Fire"]
+            }
+        """.trimIndent()
+
+        val result = GeminiJsonParser().parseTrackMetadata(json)
+
+        assertTrue(result is AppResult.Success)
+        val dto = (result as AppResult.Success).data
+        assertEquals("Chipmunk Soul", dto.primaryGenre)
+        assertEquals("Hip Hop", dto.secondaryGenre)
+        assertEquals(3.68f, dto.rymRating ?: 0f, 0.001f)
+        assertEquals(8.2f, dto.pitchforkScore ?: 0f, 0.001f)
+        assertEquals("소울 샘플과 회고적 랩 서사가 결합된 데뷔 앨범.", dto.criticsSummary)
+        assertEquals("보컬 샘플의 질감과 드럼 배치를 중심으로 감상한다.", dto.listeningGuide)
+        assertEquals(listOf("Chaka Khan - Through the Fire"), dto.samplesUsed)
+    }
 }

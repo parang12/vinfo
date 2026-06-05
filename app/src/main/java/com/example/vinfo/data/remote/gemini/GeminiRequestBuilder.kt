@@ -19,7 +19,7 @@ object GeminiRequestBuilder {
                     org.json.JSONArray().put(
                         JSONObject().put(
                             "text",
-                            "You are a music metadata assistant with Google Search grounding enabled. Use the provided artist and song title only to identify the matching album, then return album-based metadata only. Return valid JSON with keys: artist, title, album, primary_genres, secondary_genres, microgenres, genre_source, rym_rating, pitchfork_score, metacritic_score, aoty_score, critics_summary, interview_summary, listening_guide, samples_used, missing_sources, reliability_notes. Do not wrap the JSON in markdown. primary_genres, secondary_genres, and microgenres must be arrays of objects with name, confidence, and optional evidence_text. Use the most specific reliable album-level style in primary_genres, not only a broad parent genre; for example, Migos - Culture should include Trap as the first primary_genres item and Hip Hop/Rap only as secondary_genres when helpful. Use null for unavailable album ratings. Include only ratings that belong to the identified album, not the individual song. Search the direct rating source first. If a direct source page is unavailable or blocked, you may use reliable Reddit discussions or HipHople posts as an indirect discovery and corroboration route. Never accept a single community-only score as authoritative. Only use an indirectly corroborated score when multiple independent search results consistently quote the same album-level score and source name; add a reliability_notes entry that the score was indirectly corroborated through community search. Otherwise return null. Use concise but information-rich Korean descriptions for summaries."
+                            "You are a music metadata assistant with Google Search grounding enabled. Step 1: use only the provided artist and song title to resolve the canonical album that contains the track. Treat the provided album value only as an optional hint, not as the source of truth. Step 2: return metadata for the identified album, not standalone song metadata. Return valid JSON with keys: artist, title, album, primary_genres, secondary_genres, microgenres, genre_source, rym_rating, pitchfork_score, metacritic_score, aoty_score, critics_summary, interview_summary, listening_guide, samples_used, missing_sources, reliability_notes. Do not wrap the JSON in markdown. primary_genres, secondary_genres, and microgenres must be arrays of objects with name, confidence, and optional evidence_text. Use the most specific reliable album-level style in primary_genres, not only a broad parent genre; for example, Migos - Culture should include Trap as the first primary_genres item and Hip Hop/Rap only as secondary_genres when helpful. Use null for unavailable album ratings. Include only ratings that belong to the identified album, not the individual song. Search the direct rating source first. If a direct source page is unavailable or blocked, you may use reliable Reddit discussions or HipHople posts as an indirect discovery and corroboration route. Never accept a single community-only score as authoritative. Only use an indirectly corroborated score when multiple independent search results consistently quote the same album-level score and source name; add a reliability_notes entry that the score was indirectly corroborated through community search. Otherwise return null. Use concise but information-rich Korean descriptions for summaries."
                         )
                     )
                 )
@@ -42,6 +42,8 @@ object GeminiRequestBuilder {
                                     "text",
                                     buildString {
                                         appendLine("Use the artist and title to identify the matching album, then analyze that album and return the JSON payload only.")
+                                        appendLine("Do not analyze the song as a standalone unit.")
+                                        appendLine("Return album metadata for the resolved album.")
                                         appendLine("Artist: $artist")
                                         appendLine("Title: $title")
                                         appendLine("Album: ${album.orEmpty()}")
@@ -59,7 +61,7 @@ object GeminiRequestBuilder {
                 "generationConfig",
                 JSONObject()
                     .put("temperature", 0.2)
-                    .put("maxOutputTokens", 1024)
+                    .put("maxOutputTokens", 2048)
             )
 
         return body.toString().toRequestBody(jsonMediaType)

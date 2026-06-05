@@ -56,4 +56,44 @@ class AlbumEntityTest {
         assertEquals(GenreSource.LLM, restored.genreSource)
         assertEquals(listOf("pitchfork"), restored.missingSources)
     }
+
+    @Test
+    fun `fromTrackSnapshot stores specific album genre candidates before broad categories`() {
+        val track = NowPlayingTrack(
+            artist = "Kanye West",
+            title = "Through the Wire",
+            album = null,
+            albumArtUrl = null,
+            sourcePackageName = "com.test.player"
+        )
+        val metadata = TrackMetadata(
+            artist = "Kanye West",
+            title = "Through the Wire",
+            album = "The College Dropout",
+            primaryGenre = GenreCategory.RNB,
+            secondaryGenre = GenreCategory.HIP_HOP,
+            genreCandidates = listOf(
+                AlbumGenreCandidate("Chipmunk Soul", 0.9f, GenreCandidateTier.PRIMARY),
+                AlbumGenreCandidate("Hip Hop", 0.8f, GenreCandidateTier.SECONDARY)
+            ),
+            genreSource = GenreSource.LLM,
+            rymRating = 3.68f,
+            pitchforkScore = 8.2f,
+            metacriticScore = null,
+            aotyScore = null,
+            criticsSummary = "앨범 기준 평론",
+            interviewSummary = null,
+            listeningGuide = "앨범 감상 포인트",
+            samplesUsed = emptyList(),
+            missingSources = emptyList(),
+            reliabilityNotes = emptyList()
+        )
+
+        val entity = AlbumEntity.fromTrackSnapshot("track-id", track, metadata, savedAtMillis = 0L)
+
+        assertEquals("The College Dropout", entity.albumTitle)
+        assertEquals("Chipmunk Soul", entity.primaryGenre)
+        assertEquals("Hip Hop", entity.secondaryGenre)
+        assertEquals(listOf("Chipmunk Soul", "Hip Hop"), entity.genres)
+    }
 }

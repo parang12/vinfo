@@ -54,6 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.vinfo.domain.model.GenreCandidateTier
 import com.example.vinfo.domain.model.GenreCategory
 import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.domain.model.TrackMetadata
@@ -343,12 +344,19 @@ private fun GenreCategory.displayName(): String {
     }
 }
 
-private fun buildGenreLabels(trackMetadata: TrackMetadata?): List<String> {
+internal fun buildGenreLabels(trackMetadata: TrackMetadata?): List<String> {
     if (trackMetadata == null) return emptyList()
-    return listOfNotNull(
-        trackMetadata.primaryGenre.takeUnless { it == GenreCategory.UNKNOWN }?.displayName(),
-        trackMetadata.secondaryGenre?.takeUnless { it == GenreCategory.UNKNOWN }?.displayName()
-    ).distinct()
+    val candidateLabels = trackMetadata.genreCandidates
+        .filter { it.tier != GenreCandidateTier.MICRO }
+        .map { it.name.trim() }
+        .filter { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) }
+
+    return candidateLabels.ifEmpty {
+        listOfNotNull(
+            trackMetadata.primaryGenre.takeUnless { it == GenreCategory.UNKNOWN }?.displayName(),
+            trackMetadata.secondaryGenre?.takeUnless { it == GenreCategory.UNKNOWN }?.displayName()
+        )
+    }.distinct()
 }
 
 private data class AlbumRatingUi(
