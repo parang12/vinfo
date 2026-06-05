@@ -165,9 +165,12 @@ interface ArchiveDao {
 - Gemini는 앨범 기준 장르 후보와 신뢰도를 반환한다. 장르 간 영향선은 반환하지 않는다.
 - `GenreMapper`는 후보 장르 alias를 표준 장르 사전의 `genreKey`로 정규화한다.
 - 예시 매핑: `Synth-pop`, `Synth Pop` -> `SYNTH_POP`; `Jazz rap`, `Jazz Hip Hop` -> `JAZZ_RAP`.
-- 사전에 없는 후보와 `UNKNOWN`은 런타임 그래프에서 제외한다.
+- 표준 장르 사전은 [GENRE_TAXONOMY.md](GENRE_TAXONOMY.md)의 Root Genre 계약을 따른다.
+- 사전에 없는 후보는 Root Genre 검증을 통과한 경우에만 `EMERGING` 또는 `NEEDS_REVIEW` 후보로 보존한다.
+- Root Genre 검증에 실패한 후보와 `UNKNOWN`은 런타임 그래프에서 제외한다.
 - MVP 활성화 기준은 `confidence >= 0.80`이다.
-- 통계 집계는 검증된 Primary 장르를 우선 사용한다. Secondary/Microgenre는 지도 확장 후보 및 상세 설명에 사용할 수 있다.
+- 통계 기본 집계는 Root Genre를 우선 사용한다. 세부 장르 집계는 Root 내부 drill-down으로 표시한다.
+- Secondary/Microgenre는 지도 확장 후보 및 상세 설명에 사용할 수 있다.
 
 ### 2.6 Taste Exploration 데이터 모델
 
@@ -189,8 +192,29 @@ data class GenreDictionaryEntry(
   val genreKey: String,
   val displayName: String,
   val aliases: List<String>,
+  val root: RootGenreKey,
+  val secondaryRoots: List<RootGenreKey>,
+  val branch: String?,
+  val status: GenreEntryStatus,
   val relations: List<GenreRelation>
 )
+
+enum class RootGenreKey {
+  HIP_HOP_RAP,
+  RNB_SOUL_BLUES,
+  POP,
+  ROCK,
+  ELECTRONIC,
+  JAZZ,
+  CLASSICAL_ORCHESTRAL,
+  FOLK_COUNTRY_ACOUSTIC
+}
+
+enum class GenreEntryStatus {
+  VERIFIED,
+  EMERGING,
+  NEEDS_REVIEW
+}
 
 data class GenreRelation(
   val fromGenreKey: String,
@@ -200,7 +224,7 @@ data class GenreRelation(
 )
 
 enum class GenreRelationType {
-  INFLUENCE, ADJACENT, DERIVED
+  ROOT, INFLUENCE, ADJACENT, DERIVED
 }
 
 data class VisibleGenreFlow(
@@ -233,8 +257,12 @@ data class ConfirmedGenreDiscovery(
   "genre_key": "JAZZ_RAP",
   "display_name": "Jazz Rap",
   "aliases": ["Jazz rap", "Jazz Hip Hop"],
+  "root": "HIP_HOP_RAP",
+  "secondary_roots": ["JAZZ"],
+  "branch": "Alternative Hip Hop",
+  "status": "VERIFIED",
   "relations": [
-    { "to": "HIP_HOP", "type": "DERIVED", "curated": true },
+    { "to": "HIP_HOP_RAP", "type": "ROOT", "curated": true },
     { "to": "JAZZ", "type": "INFLUENCE", "curated": true },
     { "to": "NEO_SOUL", "type": "ADJACENT", "curated": true }
   ]
@@ -245,8 +273,10 @@ data class ConfirmedGenreDiscovery(
 - Gemini 응답의 `primary_genres`, `secondary_genres`, `microgenres`를 `AlbumGenreCandidate`로 파싱한다.
 - 후보는 `GenreDictionaryEntry.aliases`를 통해 표준 `genreKey`로 정규화한다.
 - `confidence >= 0.80`이며 사전에 존재하는 후보만 활성 장르로 반영한다.
+- 사전에 없는 후보는 candidate confidence `>= 0.70` 및 root confidence `>= 0.65`일 때만 신생 장르 후보로 보존한다.
+- `VERIFIED`는 기본 지도/통계에 반영하고, `EMERGING`은 사용자 승인 또는 후보 표시 상태에서만 약하게 표시한다.
 - 화면에는 활성 장르와 검수된 관계로 직접 연결된 1-hop 주변 노드만 포함한다.
-- `UNKNOWN`, 사전 미등록 후보, 직접 연결되지 않은 노드는 화면에 렌더링하지 않는다.
+- `UNKNOWN`, Root 검증 실패 후보, 직접 연결되지 않은 노드는 화면에 렌더링하지 않는다.
 - 저장 횟수와 최근성은 노드/선 시각 강도만 보정한다. 신규 영향선을 생성하지 않는다.
 
 Validation/Parsing:

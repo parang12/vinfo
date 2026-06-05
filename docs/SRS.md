@@ -70,6 +70,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 * **Output Format:** JSON 형식으로 응답을 강제하여 앱 내 View에서 구조적으로 표시.
 * **Missing Data Rule:** RYM, Pitchfork, Metacritic, AOTY 중 확인 가능한 출처만 표시한다. 확인되지 않는 값은 추정하지 않고 `null` 또는 빈 배열로 반환한다.
 * **Genre Candidate Rule:** 앨범 분석 단계에서 Gemini는 앨범의 장르 후보와 신뢰도만 반환한다. 장르 간 영향 관계나 신규 연결선은 앨범 저장 시 자동 생성하지 않는다.
+* **Root Genre Rule:** 모든 장르 후보는 고정된 Root Genre 중 하나 이상에 매핑되어야 한다. 사전에 없는 신생 장르는 Root confidence 기준을 통과할 때만 `EMERGING` 후보로 보존하며, Root가 확인되지 않으면 지도와 통계에 반영하지 않는다.
 * **Current JSON Keys:** `artist`, `title`, `album`, `primary_genres`, `secondary_genres`, `microgenres`, `genre_source`, `rym_rating`, `pitchfork_score`, `metacritic_score`, `aoty_score`, `critics_summary`, `interview_summary`, `listening_guide`, `samples_used`, `missing_sources`, `reliability_notes`.
 
 ### 3.3 [Feature 3] Lyrics & AI Translation (lyrics.ovh + Gemini)
@@ -107,8 +108,10 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     * 초기 상태에서 탐험 지도는 비활성(빈 노드) 상태로 시작한다.
     * 곡 저장 시 식별된 앨범의 장르 후보를 표준 장르 사전에 매핑한다.
     * 신뢰도 기준을 통과하고 표준 장르 사전에 존재하는 후보만 활성 장르로 저장한다.
+    * 사전에 없는 후보는 `Root Genre` 검증을 통과한 경우에만 신생 장르 후보로 보존한다.
+    * Root Genre는 `Hip Hop / Rap`, `R&B / Soul / Blues`, `Pop`, `Rock`, `Electronic`, `Jazz`, `Classical / Orchestral`, `Folk / Country / Acoustic` 8개를 MVP 기준으로 고정한다.
     * 활성 장르와 직접 연결된 1-hop 주변 노드만 화면에 표시한다.
-    * 알 수 없는 장르, 사전에 없는 장르, 활성 장르와 직접 연결되지 않은 노드는 화면에 표시하지 않는다.
+    * 알 수 없는 장르, Root 검증 실패 장르, 승인되지 않은 신생 장르, 활성 장르와 직접 연결되지 않은 노드는 화면에 표시하지 않는다.
     * 장르 노드를 선택하고 `근처 장르 찾기`를 누르면 Gemini Search grounding으로 주변 장르와 연관성 강도를 조회한다.
     * 검색 결과는 팝업 리스트로 먼저 표시하며, 사용자가 후보를 선택하고 `선택 반영`을 눌렀을 때만 주변 노드와 연결선을 세션 지도에 추가한다.
     * 팝업 리스트는 체크박스, 왼쪽 장르명, 오른쪽 연관성(`강함`, `보통`, `약함`)을 표시한다.
@@ -124,6 +127,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     * 앨범 저장 시에는 AI가 반환한 자유 텍스트 장르 또는 영향 관계를 검증 없이 그래프에 삽입하지 않는다.
     * 사용자 주도 검색 결과는 팝업 미리보기 상태로 유지하고, 사용자가 명시적으로 반영하기 전까지 지도에 추가하지 않는다.
     * `Unknown`, 빈 장르명, 선택 장르 자기 자신, 중복 후보, 연관성 기준 미달 후보는 표시하지 않는다.
+    * Root가 확인되지 않은 신생 장르는 `Unknown`과 동일하게 지도/통계에서 제외한다.
     * MVP 지도는 1-hop만 표시한다. 2-hop 확장은 후속 검토 대상으로 둔다.
 
 ---
@@ -165,7 +169,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 
 3.  **Genre Ambiguity (장르의 모호성):**
     Gemini가 반환하는 앨범 장르는 매번 조금씩 다를 수 있습니다 (예: 'Synth-pop' vs 'Electronic Pop'). 이를 그대로 통계에 넣으면 그래프가 지저분해집니다.
-    * *Countermeasure:* 앱 내부적으로 사람이 검수한 '표준 장르 사전'을 정의한다. Gemini는 장르 후보와 신뢰도만 반환하고, 사전에 없는 후보는 그래프에서 제외한다.
+    * *Countermeasure:* 앱 내부적으로 사람이 검수한 '표준 장르 사전'을 정의한다. Gemini는 장르 후보와 신뢰도만 반환하고, 사전에 없는 후보는 Root Genre 검증을 통과할 때만 `EMERGING` 후보로 보존한다. Root가 확인되지 않은 후보는 그래프와 통계에서 제외한다.
 
 4.  **Background Limitation (OS 제약):**
     Android 12 이후 백그라운드 서비스 제약이 강화되었습니다. `NotificationListenerService`가 시스템에 의해 킬(Kill)당할 경우를 대비해, 포그라운드 서비스(Foreground Service) 활용 및 권한 안내 가이드를 철저히 설계해야 합니다.

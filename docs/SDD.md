@@ -22,6 +22,7 @@ vinfo는 유지보수성과 외부 API 종속성 격리를 위해 Clean Architec
 세부 데이터 계약은 [docs/DATA.md](DATA.md)에 분리했다.
 
 - [docs/DATA.md](DATA.md): Gemini/Lyrics(및 Perplexity 레거시) 요청 계약, DTO, 저장 구조, 정규화, 오류 처리, 마이그레이션, 테스트
+- [docs/GENRE_TAXONOMY.md](GENRE_TAXONOMY.md): Root Genre, Branch/Micro 장르, 신생 장르 검증 정책
 - [docs/SRS.md](SRS.md): 요구사항 정의
 - [docs/UI.md](UI.md): UI/UX 표현 정의
 
@@ -51,6 +52,8 @@ vinfo는 유지보수성과 외부 API 종속성 격리를 위해 Clean Architec
 - Presentation: `GenreMapScreen` (Compose) — 노드 레이아웃, 애니메이션, 터치/툴팁, 주변 장르 팝업 처리
 - Presentation State: `GenreMapViewModel`, `GenreMapDiscoveryState` — 검색 로딩, 팝업 후보, 세션 반영 결과 관리
 - Domain: `DiscoverNearbyGenresUseCase` — Gemini 주변 장르 후보 검증, 중복 제거, 강도 임계값 필터, 최대 6개 제한
+- Domain: `NormalizeAlbumGenreCandidatesUseCase` — Gemini 앨범 장르 후보를 표준 장르 사전과 Root Genre 정책으로 정규화
+- Domain: `GetVisibleGenreFlowUseCase` — 활성/인접/신생 후보 노드의 표시 가능 여부와 1-hop 그래프를 산출
 - Data: `GeminiGenreRelationDiscoveryRepository` — 선택 장르 기반 Search grounding 요청과 JSON 파싱
 
 ### 5.3 데이터 모델 (요약)
@@ -66,20 +69,24 @@ vinfo는 유지보수성과 외부 API 종속성 격리를 위해 Clean Architec
 2. 검색: `GeminiGenreRelationRequestBuilder`가 Search grounding 요청으로 주변 장르 후보와 `relation_strength`를 요청한다.
 3. 파싱: `GeminiGenreRelationJsonParser`가 `nearby_genres` 배열을 `GenreRelationCandidate`로 변환한다.
 4. 검증: `DiscoverNearbyGenresUseCase`가 `Unknown`, 빈 값, 자기 자신, 중복, `score < 0.35` 후보를 제외하고 최대 6개만 유지한다.
-5. 팝업: 후보는 바로 지도에 들어가지 않고 팝업 리스트로 표시된다.
-6. 선택 반영: 팝업에서 사용자가 체크한 후보만 `ConfirmedGenreDiscovery`로 세션 상태에 저장되고 지도에 주변 노드와 연결선을 추가한다.
-7. 시각 강도: `relation_strength`는 선 굵기와 투명도, 팝업의 `강함/보통/약함` 라벨로 표현한다.
-8. 배치: 새 주변 노드는 선택 장르 주변의 여러 반지름 슬롯을 탐색해 기존 노드와 최소 간격을 확보한 위치에 둔다.
+5. Root 검증: 사전 미등록 후보는 `GENRE_TAXONOMY.md`의 Root Genre 정책을 통과한 경우에만 `EMERGING` 후보로 보존한다.
+6. 팝업: 후보는 바로 지도에 들어가지 않고 팝업 리스트로 표시된다.
+7. 선택 반영: 팝업에서 사용자가 체크한 후보만 `ConfirmedGenreDiscovery`로 세션 상태에 저장되고 지도에 주변 노드와 연결선을 추가한다.
+8. 시각 강도: `relation_strength`는 선 굵기와 투명도, 팝업의 `강함/보통/약함` 라벨로 표현한다.
+9. 배치: 새 주변 노드는 선택 장르 주변의 여러 반지름 슬롯을 탐색해 기존 노드와 최소 간격을 확보한 위치에 둔다.
 
 ### 5.5 Presentation 요구사항
 - 노드 유형: `Activated`(앨범 저장으로 확인됨), `Adjacent`(사용자 검색으로 발견되어 반영됨)
-- `Unknown`, 사전에 없는 장르, 2-hop 이상 떨어진 장르, `Locked` 노드는 기본 화면에 렌더링하지 않는다.
+- 노드 계층: Root Genre는 클러스터 기준, Verified Branch/Micro 장르는 실제 노드, Emerging 장르는 기본 숨김 후보로 취급한다.
+- `Unknown`, Root 검증 실패 장르, 2-hop 이상 떨어진 장르, `Locked` 노드는 기본 화면에 렌더링하지 않는다.
 - 상호작용: 노드 탭→장르 기반 아카이브 목록으로 네비게이션, 롱프레스→노드 카드(설명/저장수/최근 진입) 표시
 - 애니메이션: 새 활성 장르가 추가될 때 간단한 확장 토스트 및 배지(성능 저하 최소화)
 - 접근성: 색상 외에 심볼/테두리로 상태 구분
 
 ### 5.6 Use Cases (도메인 유스케이스)
 - `DiscoverNearbyGenresUseCase`: 선택 장르 주변 후보를 검증하고 정렬한다.
+- `NormalizeAlbumGenreCandidatesUseCase`: 앨범 장르 후보를 alias, Root Genre, status 기준으로 정규화한다.
+- `GetVisibleGenreFlowUseCase`: 저장 이력과 장르 사전에서 지도에 표시할 활성/인접 노드와 관계만 산출한다.
 
 ### 5.7 API/계약
 - Repository: `GenreRelationDiscoveryRepository`
