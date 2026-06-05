@@ -67,14 +67,38 @@ class CachedTrackMetadataRepository(
     }
 
     private fun AlbumEntity.hasUsableMetadata(): Boolean {
-        return listOfNotNull(primaryGenre, secondaryGenre)
+        val hasGenre = listOfNotNull(primaryGenre, secondaryGenre)
             .any { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) } ||
             genres.any { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) }
+        val hasAlbumDetails = rymRating != null ||
+            pitchforkScore != null ||
+            metacriticScore != null ||
+            aotyScore != null ||
+            !criticsSummary.isNullOrBlank() ||
+            !listeningGuide.isNullOrBlank() ||
+            samplesUsedJson.hasNonEmptyJsonArray()
+
+        return hasGenre && hasAlbumDetails
     }
 
     private fun TrackMetadata.hasUsableMetadata(): Boolean {
-        return primaryGenre != GenreCategory.UNKNOWN ||
+        val hasGenre = primaryGenre != GenreCategory.UNKNOWN ||
             secondaryGenre?.let { it != GenreCategory.UNKNOWN } == true ||
             genreCandidates.isNotEmpty()
+        val hasAlbumDetails = rymRating != null ||
+            pitchforkScore != null ||
+            metacriticScore != null ||
+            aotyScore != null ||
+            criticsSummary.isNotBlank() ||
+            listeningGuide.isNotBlank() ||
+            samplesUsed.isNotEmpty()
+
+        return hasGenre && hasAlbumDetails
+    }
+
+    private fun String.hasNonEmptyJsonArray(): Boolean {
+        return runCatching {
+            org.json.JSONArray(this).length() > 0
+        }.getOrDefault(false)
     }
 }

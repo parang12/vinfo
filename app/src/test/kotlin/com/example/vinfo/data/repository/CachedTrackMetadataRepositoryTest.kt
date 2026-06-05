@@ -145,6 +145,63 @@ class CachedTrackMetadataRepositoryTest {
         assertEquals(3.47f, dao.insertedAlbum?.rymRating ?: 0f, 0.001f)
     }
 
+    @Test
+    fun `fetchTrackMetadata refreshes cached album that has only broad genre without details`() = runBlocking {
+        val broadOnlyCache = AlbumEntity(
+            id = "broad-cache",
+            albumTitle = "My Beautiful Dark Twisted Fantasy",
+            artist = "Kanye West",
+            album = "My Beautiful Dark Twisted Fantasy",
+            genres = listOf("Hip Hop"),
+            primaryGenre = "Hip Hop",
+            secondaryGenre = null,
+            rymRating = null,
+            pitchforkScore = null,
+            metacriticScore = null,
+            aotyScore = null,
+            criticsSummary = null,
+            listeningGuide = null,
+            samplesUsedJson = "[]",
+            date = "2026.06.05"
+        )
+        val dao = FakeAlbumDao(cachedByAlbum = broadOnlyCache)
+        val remote = CountingTrackMetadataRepository(
+            result = AppResult.Success(
+                TrackMetadata(
+                    artist = "Kanye West",
+                    title = "Dark Fantasy",
+                    album = "My Beautiful Dark Twisted Fantasy",
+                    primaryGenre = GenreCategory.HIP_HOP,
+                    secondaryGenre = null,
+                    genreSource = GenreSource.LLM,
+                    rymRating = 4.05f,
+                    pitchforkScore = 10.0f,
+                    metacriticScore = 94,
+                    aotyScore = 85,
+                    criticsSummary = "새로 받은 앨범 평론",
+                    interviewSummary = null,
+                    listeningGuide = "새로 받은 감상 가이드",
+                    samplesUsed = listOf("King Crimson - 21st Century Schizoid Man"),
+                    missingSources = emptyList(),
+                    reliabilityNotes = emptyList()
+                )
+            )
+        )
+        val repository = CachedTrackMetadataRepository(dao, remote)
+
+        val result = repository.fetchTrackMetadata(
+            artist = "Kanye West",
+            title = "Dark Fantasy",
+            album = "My Beautiful Dark Twisted Fantasy",
+            apiKey = "test-key"
+        )
+
+        assertTrue(result is AppResult.Success<*>)
+        assertEquals(1, remote.callCount)
+        assertEquals(4.05f, dao.insertedAlbum?.rymRating ?: 0f, 0.001f)
+        assertEquals("새로 받은 앨범 평론", dao.insertedAlbum?.criticsSummary)
+    }
+
     private class CountingTrackMetadataRepository(
         private val result: AppResult<TrackMetadata> = AppResult.Error("remote should not be called")
     ) : TrackMetadataRepository {
