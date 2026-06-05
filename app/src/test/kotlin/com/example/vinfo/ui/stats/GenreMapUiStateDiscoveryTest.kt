@@ -1,7 +1,14 @@
 package com.example.vinfo.ui.stats
 
+import com.example.vinfo.data.local.entity.AlbumEntity
+import com.example.vinfo.domain.model.AlbumGenreCandidate
 import com.example.vinfo.domain.model.ConfirmedGenreDiscovery
+import com.example.vinfo.domain.model.GenreCandidateTier
+import com.example.vinfo.domain.model.GenreCategory
 import com.example.vinfo.domain.model.GenreRelationCandidate
+import com.example.vinfo.domain.model.GenreSource
+import com.example.vinfo.domain.model.NowPlayingTrack
+import com.example.vinfo.domain.model.TrackMetadata
 import com.example.vinfo.ui.archive.DummyArchive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -129,6 +136,76 @@ class GenreMapUiStateDiscoveryTest {
         assertNotNull(trapNode)
         assertEquals(GenreMapNodeType.Activated, trapNode!!.type)
         assertTrue(hipHopNode == null || hipHopNode.type != GenreMapNodeType.Activated)
+    }
+
+    @Test
+    fun `fromArchive activates progressive rap node saved from MBDTF metadata`() {
+        val state = GenreMapUiState.fromArchive(
+            listOf(
+                DummyArchive(
+                    id = "mbdtf",
+                    title = "My Beautiful Dark Twisted Fantasy",
+                    artist = "Kanye West",
+                    genres = listOf("Progressive Rap", "Art Pop"),
+                    date = "2026.06.05"
+                )
+            )
+        )
+
+        val progressiveRapNode = state.nodes.firstOrNull { it.label == "Progressive Rap" }
+        val hipHopNode = state.nodes.firstOrNull { it.label == "Hip-Hop" }
+
+        assertNotNull(progressiveRapNode)
+        assertEquals(GenreMapNodeType.Activated, progressiveRapNode!!.type)
+        assertEquals(1, progressiveRapNode.saveCount)
+        assertNotNull(hipHopNode)
+        assertEquals(GenreMapNodeType.Adjacent, hipHopNode!!.type)
+    }
+
+    @Test
+    fun `saved MBDTF album metadata syncs specific genre into map state`() {
+        val track = NowPlayingTrack(
+            artist = "Kanye West",
+            title = "Dark Fantasy",
+            album = null,
+            sourcePackageName = "com.spotify.music",
+            albumArtUrl = null
+        )
+        val metadata = TrackMetadata(
+            artist = "Kanye West",
+            title = "Dark Fantasy",
+            album = "My Beautiful Dark Twisted Fantasy",
+            primaryGenre = GenreCategory.HIP_HOP,
+            secondaryGenre = GenreCategory.POP,
+            genreCandidates = listOf(
+                AlbumGenreCandidate("Progressive Rap", 0.91f, GenreCandidateTier.PRIMARY),
+                AlbumGenreCandidate("Art Pop", 0.72f, GenreCandidateTier.SECONDARY)
+            ),
+            genreSource = GenreSource.LLM,
+            rymRating = 4.05f,
+            pitchforkScore = 10f,
+            metacriticScore = 94,
+            aotyScore = 85,
+            criticsSummary = "앨범 기준 평론",
+            interviewSummary = null,
+            listeningGuide = "앨범 감상 포인트",
+            samplesUsed = emptyList(),
+            missingSources = emptyList(),
+            reliabilityNotes = emptyList()
+        )
+        val archiveItem = AlbumEntity.fromTrackSnapshot(
+            trackId = "mbdtf",
+            track = track,
+            metadata = metadata,
+            savedAtMillis = 0L
+        ).toDomain()
+
+        val state = GenreMapUiState.fromArchive(listOf(archiveItem))
+
+        val progressiveRapNode = state.nodes.firstOrNull { it.label == "Progressive Rap" }
+        assertEquals(listOf("Progressive Rap", "Art Pop"), archiveItem.genres)
+        assertNotNull(progressiveRapNode)
+        assertEquals(GenreMapNodeType.Activated, progressiveRapNode!!.type)
     }
 
     @Test

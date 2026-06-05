@@ -303,6 +303,7 @@ internal data class GenreMapUiState(
             FlowNode("Boom Bap", Offset(0.69f, 0.22f)),
             FlowNode("Trap", Offset(0.69f, 0.72f)),
             FlowNode("Jazz Rap", Offset(0.72f, 0.48f)),
+            FlowNode("Progressive Rap", Offset(0.80f, 0.58f)),
             FlowNode("Neo Soul", Offset(0.86f, 0.34f)),
             FlowNode("Pop Rap", Offset(0.86f, 0.76f)),
             FlowNode("Art Pop", Offset(0.92f, 0.55f)),
@@ -322,7 +323,9 @@ internal data class GenreMapUiState(
             FlowLink("Hip-Hop", "Boom Bap"),
             FlowLink("Hip-Hop", "Trap"),
             FlowLink("Hip-Hop", "Jazz Rap"),
+            FlowLink("Hip-Hop", "Progressive Rap"),
             FlowLink("Jazz Rap", "Neo Soul"),
+            FlowLink("Progressive Rap", "Art Pop"),
             FlowLink("Trap", "Pop Rap"),
             FlowLink("Neo Soul", "Art Pop"),
             FlowLink("Pop Rap", "Art Pop"),
@@ -425,7 +428,7 @@ private fun findOpenGenreNodePosition(
     val slots = candidateCount.coerceAtLeast(7)
     val startAngle = -PI / 2.0
     val radii = listOf(0.23f, 0.31f, 0.39f, 0.47f)
-    val minDistance = 0.155f
+    val minDistance = 0.17f
 
     radii.forEachIndexed { radiusIndex, radius ->
         repeat(slots) { slotOffset ->
@@ -465,6 +468,7 @@ private fun String.toMapGenreName(): String? {
     val normalized = trim().lowercase()
     return when {
         normalized.isBlank() || normalized == "unknown" -> null
+        "progressive rap" in normalized -> "Progressive Rap"
         "jazz rap" in normalized -> "Jazz Rap"
         "blues" in normalized -> "Blues"
         "neo soul" in normalized -> "Neo Soul"
