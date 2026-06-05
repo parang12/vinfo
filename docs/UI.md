@@ -162,11 +162,15 @@ Bottom Navigation:
 - 장르 간 주변 후보는 사용자가 버튼을 눌렀을 때만 Gemini 검색으로 조회한다.
 - 검색 결과는 팝업 미리보기 후 사용자가 후보를 선택하고 `선택 반영`해야 지도에 추가된다.
 - 새 주변 노드는 고정 좌표가 아니라 기존 노드와 간격을 확인한 후보 슬롯에 배치해 겹침을 줄인다.
+- 하단 인사이트 패널은 `Expanded`, `Peek`, `Hidden` 3단계 상태를 가진다.
+- 사용자는 패널을 아래로 드래그해 지도 영역을 넓게 볼 수 있고, `Hidden` 상태에서도 하단 손잡이는 남아 다시 올릴 수 있다.
+- 손잡이를 탭하면 `Expanded`와 `Hidden` 사이를 빠르게 전환한다.
 
 ### 6.4 Core Components
 - Full-screen Map Canvas (pan/zoom)
 - Node Card Tooltip (장르 설명, 저장 수, 최근 진입 시점)
 - Nearby Genre Discovery Dialog (선택 체크박스 / 장르 / 연관성 리스트)
+- Draggable Insight Bottom Sheet (Expanded / Peek / Hidden)
 - Flow Summary Bar
 - Activation Event Banner
 - Legend (활성/인접)

@@ -1,5 +1,6 @@
 package com.example.vinfo.ui.stats
 
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -66,6 +68,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.vinfo.ui.archive.DummyArchive
@@ -87,6 +90,52 @@ internal enum class GenreMapNodeType {
     Activated,
     Adjacent,
     Locked
+}
+
+internal enum class TasteFlowSheetState {
+    Expanded,
+    Peek,
+    Hidden
+}
+
+internal fun nextTasteFlowSheetStateAfterDrag(
+    current: TasteFlowSheetState,
+    dragDeltaPx: Float,
+    thresholdPx: Float
+): TasteFlowSheetState {
+    if (dragDeltaPx > thresholdPx) {
+        return when (current) {
+            TasteFlowSheetState.Expanded -> TasteFlowSheetState.Peek
+            TasteFlowSheetState.Peek -> TasteFlowSheetState.Hidden
+            TasteFlowSheetState.Hidden -> TasteFlowSheetState.Hidden
+        }
+    }
+
+    if (dragDeltaPx < -thresholdPx) {
+        return when (current) {
+            TasteFlowSheetState.Expanded -> TasteFlowSheetState.Expanded
+            TasteFlowSheetState.Peek -> TasteFlowSheetState.Expanded
+            TasteFlowSheetState.Hidden -> TasteFlowSheetState.Peek
+        }
+    }
+
+    return current
+}
+
+internal fun nextTasteFlowSheetStateOnHandleTap(current: TasteFlowSheetState): TasteFlowSheetState {
+    return when (current) {
+        TasteFlowSheetState.Expanded -> TasteFlowSheetState.Hidden
+        TasteFlowSheetState.Peek,
+        TasteFlowSheetState.Hidden -> TasteFlowSheetState.Expanded
+    }
+}
+
+private fun TasteFlowSheetState.visibleHeight(): Dp {
+    return when (this) {
+        TasteFlowSheetState.Expanded -> 318.dp
+        TasteFlowSheetState.Peek -> 104.dp
+        TasteFlowSheetState.Hidden -> 32.dp
+    }
 }
 
 internal data class GenreMapNodeUi(
@@ -462,6 +511,7 @@ internal fun GenreMapScreen(
     var selectedNodeId by rememberSaveable(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()?.id) }
     var selectedNode by remember(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()) }
     var selectedEdge by remember { mutableStateOf<GenreMapEdgeUi?>(null) }
+    var bottomSheetState by rememberSaveable { mutableStateOf(TasteFlowSheetState.Expanded) }
     var scale by rememberSaveable { mutableStateOf(0.92f) }
     var panX by rememberSaveable { mutableStateOf(0f) }
     var panY by rememberSaveable { mutableStateOf(12f) }
@@ -489,6 +539,7 @@ internal fun GenreMapScreen(
             onNodeSelected = { node ->
                 selectedNodeId = node.id
                 selectedNode = node
+                bottomSheetState = TasteFlowSheetState.Expanded
                 onGenreClick(node.genreKey)
             },
             onEdgeSelected = { edge ->
@@ -525,6 +576,8 @@ internal fun GenreMapScreen(
             selectedNode = selectedNode,
             recentAlbums = mapState.recentAlbums,
             isDiscoveryLoading = discoveryState.isLoading,
+            sheetState = bottomSheetState,
+            onSheetStateChange = { bottomSheetState = it },
             onFindNearbyGenres = onFindNearbyGenres,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
@@ -699,12 +752,42 @@ private fun TasteFlowBottomSheet(
     selectedNode: GenreMapNodeUi?,
     recentAlbums: List<DummyArchive>,
     isDiscoveryLoading: Boolean,
+    sheetState: TasteFlowSheetState,
+    onSheetStateChange: (TasteFlowSheetState) -> Unit,
     onFindNearbyGenres: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val expandedHeight = 318.dp
+    val visibleHeight = sheetState.visibleHeight()
+    val sheetOffsetY by animateDpAsState(
+        targetValue = expandedHeight - visibleHeight,
+        label = "tasteFlowBottomSheetOffset"
+    )
+    val dragThresholdPx = with(LocalDensity.current) { 64.dp.toPx() }
+    var dragDeltaPx by remember { mutableStateOf(0f) }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .offset(y = sheetOffsetY)
+            .pointerInput(sheetState) {
+                detectVerticalDragGestures(
+                    onDragStart = { dragDeltaPx = 0f },
+                    onVerticalDrag = { _, dragAmount ->
+                        dragDeltaPx += dragAmount
+                    },
+                    onDragEnd = {
+                        onSheetStateChange(
+                            nextTasteFlowSheetStateAfterDrag(
+                                current = sheetState,
+                                dragDeltaPx = dragDeltaPx,
+                                thresholdPx = dragThresholdPx
+                            )
+                        )
+                    },
+                    onDragCancel = { dragDeltaPx = 0f }
+                )
+            }
             .padding(horizontal = 0.dp),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
@@ -713,19 +796,29 @@ private fun TasteFlowBottomSheet(
     ) {
         Column(
             modifier = Modifier
-                .height(318.dp)
+                .height(expandedHeight)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 22.dp, vertical = 14.dp)
         ) {
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .width(34.dp)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.outlineVariant)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+                    .fillMaxWidth()
+                    .height(24.dp)
+                    .clickable {
+                        onSheetStateChange(nextTasteFlowSheetStateOnHandleTap(sheetState))
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(38.dp)
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(MaterialTheme.colorScheme.outlineVariant)
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
