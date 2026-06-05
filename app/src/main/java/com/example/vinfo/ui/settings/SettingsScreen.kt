@@ -60,7 +60,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val apiKeyStore = remember(context) { ApiKeyStore(context.applicationContext) }
-    var geminiKey by remember { mutableStateOf(apiKeyStore.getGeminiApiKey()) }
+    var geminiKey by remember { mutableStateOf(initialGeminiApiKeyInputValue(apiKeyStore.getGeminiApiKey())) }
     var apiKeySaveMessage by remember { mutableStateOf<String?>(null) }
     var apiKeySaveMessageColor by remember { mutableStateOf(Color(0xFF007A3D)) }
     var themeSaveMessage by remember { mutableStateOf<String?>(null) }
@@ -119,7 +119,7 @@ fun SettingsScreen(
                         label = "Gemini API Key",
                         value = geminiKey,
                         onValueChange = { geminiKey = it },
-                        placeholder = "AIza..."
+                        placeholder = geminiApiKeyPlaceholder()
                     )
                     Text(
                         text = "리뷰 요약 및 생성에 사용됩니다.",
@@ -146,7 +146,7 @@ fun SettingsScreen(
                                 val saved = apiKeyStore.saveGeminiApiKey(trimmedKey)
                                 val persistedKey = apiKeyStore.getGeminiApiKey()
                                 val verified = saved && persistedKey == trimmedKey
-                                geminiKey = persistedKey
+                                geminiKey = initialGeminiApiKeyInputValue(persistedKey)
                                 apiKeySaveMessage = if (verified) {
                                     "Gemini API Key가 저장되었습니다."
                                 } else {
@@ -326,6 +326,10 @@ fun SettingsScreen(
         )
     }
 }
+
+internal fun initialGeminiApiKeyInputValue(@Suppress("UNUSED_PARAMETER") savedApiKey: String): String = ""
+
+internal fun geminiApiKeyPlaceholder(): String = "Gemini API Key 입력"
 
 @Composable
 fun SettingsSectionTitle(title: String) {
