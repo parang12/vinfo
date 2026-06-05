@@ -87,9 +87,9 @@ class GeminiJsonParser {
             ?: optNullableString("secondary_genre")
 
         return com.example.vinfo.data.remote.perplexity.TrackMetadataDto(
-            artist = optString("artist").trim(),
-            title = optString("title").trim(),
-            album = optNullableString("album"),
+            artist = optFirstString("artist", "artist_name", "artistName").orEmpty(),
+            title = optFirstString("title", "track_title", "trackTitle", "song_title", "songTitle").orEmpty(),
+            album = optFirstString("album", "album_title", "albumTitle"),
             primaryGenre = primaryGenre,
             secondaryGenre = secondaryGenre,
             genreCandidates = genreCandidates,
@@ -98,9 +98,9 @@ class GeminiJsonParser {
             pitchforkScore = optNullableFloat("pitchfork_score"),
             metacriticScore = optNullableInt("metacritic_score"),
             aotyScore = optNullableInt("aoty_score"),
-            criticsSummary = optString("critics_summary").trim(),
+            criticsSummary = optFirstString("critics_summary", "criticsSummary", "review_summary", "reviewSummary").orEmpty(),
             interviewSummary = optNullableString("interview_summary"),
-            listeningGuide = optString("listening_guide").trim(),
+            listeningGuide = optFirstString("listening_guide", "listeningGuide", "listening_notes", "listeningNotes").orEmpty(),
             samplesUsed = optStringList("samples_used", "samplesUsed"),
             missingSources = optStringList("missing_sources", "missingSources"),
             reliabilityNotes = optStringList("reliability_notes", "reliabilityNotes")
@@ -138,6 +138,10 @@ class GeminiJsonParser {
     private fun JSONObject.optNullableString(key: String): String? {
         if (!has(key) || isNull(key)) return null
         return optString(key).trim().takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+    }
+
+    private fun JSONObject.optFirstString(vararg keys: String): String? {
+        return keys.firstNotNullOfOrNull { key -> optNullableString(key) }
     }
 
     private fun JSONObject.optNullableFloat(key: String): Float? {
