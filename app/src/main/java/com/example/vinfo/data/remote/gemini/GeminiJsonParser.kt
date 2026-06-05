@@ -7,7 +7,12 @@ import org.json.JSONObject
 
 class GeminiJsonParser {
 
-    fun parseTrackMetadata(rawResponse: String): AppResult<com.example.vinfo.data.remote.perplexity.TrackMetadataDto> {
+    fun parseTrackMetadata(
+        rawResponse: String,
+        fallbackArtist: String? = null,
+        fallbackTitle: String? = null,
+        fallbackAlbum: String? = null
+    ): AppResult<com.example.vinfo.data.remote.perplexity.TrackMetadataDto> {
         val payload = extractGeminiText(rawResponse) ?: rawResponse
         val jsonText = extractFirstJsonObject(payload) ?: extractFirstJsonObject(rawResponse)
             ?: return AppResult.Error("LLM 응답에서 JSON 객체를 찾을 수 없습니다.")
@@ -18,7 +23,7 @@ class GeminiJsonParser {
 
         val dto = runCatching {
             // reuse existing DTO structure from perplexity package
-            jsonObject.toTrackMetadataDto()
+            jsonObject.toTrackMetadataDto(fallbackArtist, fallbackTitle, fallbackAlbum)
         }.getOrElse {
             return AppResult.Error("LLM 필드 검증 실패", it)
         }
@@ -75,7 +80,11 @@ class GeminiJsonParser {
         return null
     }
 
-    private fun JSONObject.toTrackMetadataDto(): com.example.vinfo.data.remote.perplexity.TrackMetadataDto {
+    private fun JSONObject.toTrackMetadataDto(
+        fallbackArtist: String?,
+        fallbackTitle: String?,
+        fallbackAlbum: String?
+    ): com.example.vinfo.data.remote.perplexity.TrackMetadataDto {
         val genreCandidates = buildList {
             addAll(optGenreCandidates("primary_genres", GenreCandidateTier.PRIMARY))
             addAll(optGenreCandidates("secondary_genres", GenreCandidateTier.SECONDARY))
@@ -87,9 +96,12 @@ class GeminiJsonParser {
             ?: optNullableString("secondary_genre")
 
         return com.example.vinfo.data.remote.perplexity.TrackMetadataDto(
-            artist = optFirstString("artist", "artist_name", "artistName").orEmpty(),
-            title = optFirstString("title", "track_title", "trackTitle", "song_title", "songTitle").orEmpty(),
-            album = optFirstString("album", "album_title", "albumTitle"),
+            artist = fallbackArtist?.trim()?.takeIf { it.isNotBlank() }
+                ?: optFirstString("artist", "artist_name", "artistName").orEmpty(),
+            title = fallbackTitle?.trim()?.takeIf { it.isNotBlank() }
+                ?: optFirstString("title", "track_title", "trackTitle", "song_title", "songTitle").orEmpty(),
+            album = optFirstString("album", "album_title", "albumTitle")
+                ?: fallbackAlbum?.trim()?.takeIf { it.isNotBlank() },
             primaryGenre = primaryGenre,
             secondaryGenre = secondaryGenre,
             genreCandidates = genreCandidates,

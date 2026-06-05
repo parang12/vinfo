@@ -34,7 +34,7 @@ class GeminiTrackMetadataRepository(
             return@withContext AppResult.Error(throwable.toGeminiErrorMessage(), throwable)
         }
 
-        when (val parsed = jsonParser.parseTrackMetadata(rawResponse)) {
+        when (val parsed = jsonParser.parseTrackMetadata(rawResponse, artist, title, album)) {
             is AppResult.Success -> AppResult.Success(parsed.data.toDomainMetadata())
             is AppResult.Error -> parsed
             AppResult.Loading -> AppResult.Error("LLM 상태를 해석할 수 없습니다.")

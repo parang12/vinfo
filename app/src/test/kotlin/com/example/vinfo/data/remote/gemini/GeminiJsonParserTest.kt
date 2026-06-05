@@ -216,4 +216,45 @@ class GeminiJsonParserTest {
         assertEquals("My Beautiful Dark Twisted Fantasy", dto.album)
         assertEquals("앨범 기준 요약", dto.criticsSummary)
     }
+
+    @Test
+    fun `parseTrackMetadata uses request values when Gemini omits artist and title`() {
+        val json = """
+            {
+              "artist": "Wrong Artist",
+              "title": "Wrong Title",
+              "album": "My Beautiful Dark Twisted Fantasy",
+              "primary_genres": [
+                { "name": "Progressive Rap", "confidence": 0.91 }
+              ],
+              "secondary_genres": [],
+              "microgenres": [],
+              "genre_source": "LLM",
+              "rym_rating": null,
+              "pitchfork_score": null,
+              "metacritic_score": null,
+              "aoty_score": null,
+              "critics_summary": "앨범 기준 요약",
+              "interview_summary": null,
+              "listening_guide": "앨범 맥락 감상 포인트",
+              "samples_used": [],
+              "missing_sources": [],
+              "reliability_notes": []
+            }
+        """.trimIndent()
+
+        val parser = GeminiJsonParser()
+        val result = parser.parseTrackMetadata(
+            rawResponse = json,
+            fallbackArtist = "Kanye West",
+            fallbackTitle = "See Me Now",
+            fallbackAlbum = null
+        )
+
+        assertTrue(result is AppResult.Success)
+        val dto = (result as AppResult.Success).data
+        assertEquals("Kanye West", dto.artist)
+        assertEquals("See Me Now", dto.title)
+        assertEquals("My Beautiful Dark Twisted Fantasy", dto.album)
+    }
 }
