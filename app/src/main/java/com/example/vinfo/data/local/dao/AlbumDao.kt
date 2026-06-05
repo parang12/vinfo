@@ -23,4 +23,18 @@ interface AlbumDao {
 
     @Query("SELECT * FROM albums WHERE id = :id")
     suspend fun getAlbumById(id: String): AlbumEntity?
+
+    @Query(
+        """
+        SELECT * FROM albums
+        WHERE LOWER(artist) = LOWER(:artist)
+        AND (
+            LOWER(album_title) = LOWER(:albumTitle)
+            OR LOWER(COALESCE(album, '')) = LOWER(:albumTitle)
+        )
+        ORDER BY date DESC
+        LIMIT 1
+        """
+    )
+    suspend fun findAlbumByArtistAndAlbum(artist: String, albumTitle: String): AlbumEntity?
 }

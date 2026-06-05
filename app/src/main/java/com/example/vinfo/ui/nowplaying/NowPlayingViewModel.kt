@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.vinfo.data.nowplaying.NowPlayingEventBus
+import com.example.vinfo.data.local.AppDatabase
+import com.example.vinfo.data.repository.CachedLyricsRepository
+import com.example.vinfo.data.repository.CachedTrackMetadataRepository
 import com.example.vinfo.data.remote.gemini.GeminiTrackMetadataRepository
 import com.example.vinfo.data.remote.lyrics.LyricsRepository
 import com.example.vinfo.data.settings.ApiKeyStore
@@ -35,8 +38,17 @@ data class NowPlayingUiState(
 class NowPlayingViewModel(application: Application) : AndroidViewModel(application) {
 
     private val apiKeyStore = ApiKeyStore(application.applicationContext)
-    private val getTrackInformationUseCase = GetTrackInformationUseCase(GeminiTrackMetadataRepository())
-    private val lyricsRepository = LyricsRepository()
+    private val database = AppDatabase.getDatabase(application.applicationContext)
+    private val getTrackInformationUseCase = GetTrackInformationUseCase(
+        CachedTrackMetadataRepository(
+            albumDao = database.albumDao(),
+            remoteRepository = GeminiTrackMetadataRepository()
+        )
+    )
+    private val lyricsRepository = CachedLyricsRepository(
+        lyricsCacheDao = database.lyricsCacheDao(),
+        remoteRepository = LyricsRepository()
+    )
     private val catchNowRequestGate = CatchNowRequestGate()
 
     private val _uiState = MutableStateFlow(NowPlayingUiState())

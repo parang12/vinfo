@@ -88,8 +88,9 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
     * `genre_candidates_json` (Gemini의 앨범 기준 장르 후보와 신뢰도 보존)
     * `rym_rating`, `pitchfork_score`, `metacritic_score`, `aoty_score` (있는 출처만 저장)
     * `missing_sources`, `reliability_notes` (표시하지 않은 출처와 신뢰도 주의사항)
-    * `review_summary`, `original_lyrics`
-    * `translated_lyrics` (후속 번역 기능을 위한 nullable 예약 필드)
+    * `review_summary`
+    * 원문 가사는 곡 단위 `lyrics_cache`에 `artist + track_title` 기준으로 별도 저장
+    * `translated_lyrics`는 후속 번역 기능에서 곡 단위 캐시로 추가 예정
 * **Functional Requirements:** '저장' 버튼 클릭 시 현재 조회된 모든 데이터를 Local DB에 커밋.
 
 ### 3.5 [Feature 5] Preference Visualization (Charts)
@@ -160,7 +161,7 @@ vinfo는 단독 실행되는 앱이나, Android 시스템의 알림 서비스와
 
 2.  **Token Economy (비용 문제):**
     사용자가 매 곡마다 '정보 가져오기'를 누르면 Gemini 비용이 커질 수 있습니다. 특히 같은 앨범의 여러 곡을 반복 조회하면 앨범 평점/장르 정보가 중복 요청될 수 있습니다.
-    * *Countermeasure:* 앨범 기준 메타데이터는 `artist + album_title` 키로 캐싱하고, 원문 가사는 `artist + track_title` 키로 캐싱하여 중복 API 호출을 차단해야 합니다. 후속 번역 기능을 추가할 경우 번역 결과도 곡 단위로 별도 캐싱합니다.
+    * *Countermeasure:* 구현된 캐시 계층은 앨범 기준 메타데이터를 기존 Archive row에서 `artist + album_title` 우선으로 조회하고, 원문 가사는 `lyrics_cache`에서 `artist + track_title` 키로 재사용한다. 후속 번역 기능을 추가할 경우 번역 결과도 곡 단위로 별도 캐싱합니다.
 
 3.  **Genre Ambiguity (장르의 모호성):**
     Gemini가 반환하는 앨범 장르는 매번 조금씩 다를 수 있습니다 (예: 'Synth-pop' vs 'Electronic Pop'). 이를 그대로 통계에 넣으면 그래프가 지저분해집니다.

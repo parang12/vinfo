@@ -10,6 +10,7 @@
 - [x] **출처별 앨범 평점 모델 확장**: RYM, Pitchfork, Metacritic, AOTY 중 확인 가능한 값만 저장/표시
 - [x] **LLM Parser 구현**: Gemini 응답(JSON)의 안정적인 파싱 및 앨범 기준 데이터 모델 변환 로직
 - [x] **앨범 메타데이터 영속화 확장**: Room Archive 스키마에 출처별 평점, `missing_sources`, `reliability_notes` 저장 컬럼 반영
+- [x] **중복 API 호출 방지 캐시**: 앨범 메타데이터는 Archive row에서 `artist + album_title` 우선 조회, 원문 가사는 `lyrics_cache`에서 `artist + track_title` 기준 재사용
 
 ## 2. 미디어 감지 서비스 (Medium Priority)
 - [x] **ActiveMediaMonitorService 구현**: 타 앱(Spotify, YouTube Music 등) 재생 정보 실시간 감지

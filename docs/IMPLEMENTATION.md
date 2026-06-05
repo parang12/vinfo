@@ -78,6 +78,13 @@
 - 권한 상태에는 실제 동작과 연결되지 않은 알림 토글을 두지 않고, 음악 알림 감지 목적만 안내한다.
 - 위험 동작은 빨간 텍스트로 구분했다.
 
+#### API Cache
+
+- `CachedTrackMetadataRepository`는 Gemini 호출 전에 Room Archive의 기존 앨범 row를 조회한다.
+- `currentTrack.album`이 있으면 `artist + album_title/album`을 우선 사용하고, 없으면 `artist + title` 기반 `trackId` 조회로 fallback한다.
+- Gemini 응답 성공 시 즉시 Archive row로 저장하여, 사용자가 보관함 저장 버튼을 누르지 않아도 다음 Catch Now에서 같은 앨범 분석을 재사용할 수 있다.
+- `CachedLyricsRepository`는 `lyrics_cache` 테이블에서 `artist + track_title` 기준 원문 가사를 먼저 찾고, 없을 때만 `lyrics.ovh`를 호출한다.
+
 ## 구현 메모
 
 - `VinfoCard`는 얕은 그림자, 옅은 경계선, 24dp radius를 기준으로 통일했다.

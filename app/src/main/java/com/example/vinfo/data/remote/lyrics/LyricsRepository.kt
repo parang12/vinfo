@@ -1,14 +1,15 @@
 package com.example.vinfo.data.remote.lyrics
 
 import com.example.vinfo.domain.model.AppResult
+import com.example.vinfo.domain.repository.RawLyricsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class LyricsRepository(
     private val service: LyricsApiService = LyricsApiClientFactory.create()
-) {
-    suspend fun getRawLyrics(artist: String, title: String): AppResult<String> = withContext(Dispatchers.IO) {
+) : RawLyricsRepository {
+    override suspend fun getRawLyrics(artist: String, title: String): AppResult<String> = withContext(Dispatchers.IO) {
         if (artist.isBlank() || title.isBlank()) {
             return@withContext AppResult.Error("가사를 조회할 곡 정보가 없습니다.")
         }

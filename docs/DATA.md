@@ -106,13 +106,24 @@ data class ArchiveEntity(
     @ColumnInfo(name = "interview_summary") val interviewSummary: String?,
     @ColumnInfo(name = "listening_guide") val listeningGuide: String,
     @ColumnInfo(name = "samples_used_json") val samplesUsedJson: String,
-    @ColumnInfo(name = "original_lyrics") val originalLyrics: String?,
-    @ColumnInfo(name = "translated_lyrics") val translatedLyrics: String?,
     @ColumnInfo(name = "timestamp") val timestamp: Long
 )
 ```
 
 저장 스키마에서는 `album_title`이 보관함 카드와 검색 인덱스의 기준 제목이다. 곡명은 메타데이터 조회/식별 입력으로만 사용하고, 로컬 아카이브의 표시 제목은 앨범명으로 유지한다. `primary_genre`와 `secondary_genre`는 통계 호환성을 위한 정규화 대표값이며, 전체 후보와 신뢰도는 `genre_candidates_json`에 보존한다.
+
+원문 가사는 앨범 row가 아니라 곡 단위 캐시로 분리한다. 앨범 메타데이터는 앨범 단위로 재사용되지만, 가사는 같은 앨범 안에서도 곡마다 다르기 때문이다.
+
+```kotlin
+@Entity(tableName = "lyrics_cache")
+data class LyricsCacheEntity(
+    @PrimaryKey val id: String, // buildTrackId(artist, title)
+    val artist: String,
+    val title: String,
+    val lyrics: String,
+    val updatedAtMillis: Long
+)
+```
 
 ### 2.4 Genre Statistics Projection
 
@@ -433,9 +444,10 @@ data class GenreCandidateDto(
 - `artist`와 `title`은 필수값이다. 둘 중 하나라도 비어 있으면 정보 수집과 저장을 수행하지 않고 `NowPlayingUiState.InvalidTrack`을 표시한다.
 - Notification Access 권한이 없는 경우 `NowPlayingScreen` 인라인 수동 입력 폼에서 `artist/title`을 직접 입력받아 동일 파이프라인을 실행한다.
 - `trackId`는 정규화된 `artist + title` 문자열의 SHA-256 해시 앞 16바이트를 hex로 변환해 생성한다. 정규화는 trim, lowercase, 연속 공백 1칸 치환을 적용한다.
-- `albumId`가 필요한 저장소에서는 정규화된 `artist + album` 문자열을 별도 키로 사용해 앨범 기준 메타데이터 캐싱에 활용한다.
+- `CachedTrackMetadataRepository`는 Gemini 호출 전에 기존 Archive row를 캐시로 조회한다. `album` 입력이 있으면 `artist + album_title/album`을 우선 사용하고, 없으면 `buildTrackId(artist, title)` 기반 row를 fallback으로 조회한다.
+- Gemini 응답이 성공하면 repository가 즉시 `AlbumEntity.fromTrackSnapshot()`으로 저장하여 다음 동일 앨범 조회에서 원격 호출을 생략한다.
 - 메타데이터 API가 실패해도 `artist`, `title`, `timestamp`만으로 아카이브 저장이 가능하다. 이때 `album = null`, `primaryGenre = UNKNOWN`, `secondaryGenre = null`, `genreSource = UNKNOWN`, `criticsSummary = ""`, `interviewSummary = null`, `listeningGuide = ""`, `samplesUsed = emptyList()`, `rymRating = null`, `pitchforkScore = null`, `metacriticScore = null`, `aotyScore = null`, `missingSources = emptyList()`, `reliabilityNotes = emptyList()`로 저장한다.
-- 가사 조회 실패는 저장 실패로 간주하지 않는다. `originalLyrics`는 nullable로 저장한다.
+- 가사 조회 실패는 저장 실패로 간주하지 않는다. 원문 가사는 `lyrics_cache`에 `buildTrackId(artist, title)` 기준으로 별도 저장하고, 실패 시 캐시 row를 만들지 않는다.
 - 현재 구현 범위는 `lyrics.ovh` 원문 조회까지다. Gemini 번역 호출과 `translatedLyrics` 저장은 후속 작업으로 유지한다.
 - 동일 `trackId`가 다시 저장되면 Repository가 기존 row를 먼저 조회해 새 응답과 병합한다. 병합된 최종 Entity를 `OnConflictStrategy.REPLACE`로 저장하며, 새 응답이 null인 필드는 기존 non-null 값을 유지한다.
 
