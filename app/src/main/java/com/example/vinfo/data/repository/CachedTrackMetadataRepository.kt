@@ -3,6 +3,7 @@ package com.example.vinfo.data.repository
 import com.example.vinfo.data.local.dao.AlbumDao
 import com.example.vinfo.data.local.entity.AlbumEntity
 import com.example.vinfo.domain.model.AppResult
+import com.example.vinfo.domain.model.GenreCategory
 import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.domain.model.TrackMetadata
 import com.example.vinfo.domain.model.buildTrackId
@@ -20,11 +21,13 @@ class CachedTrackMetadataRepository(
         apiKey: String
     ): AppResult<TrackMetadata> {
         findCachedMetadata(artist, title, album)?.let { cached ->
-            return AppResult.Success(cached.toTrackMetadata())
+            if (cached.hasUsableMetadata()) {
+                return AppResult.Success(cached.toTrackMetadata())
+            }
         }
 
         val result = remoteRepository.fetchTrackMetadata(artist, title, album, apiKey)
-        if (result is AppResult.Success) {
+        if (result is AppResult.Success && result.data.hasUsableMetadata()) {
             cacheMetadata(artist, title, album, result.data)
         }
         return result
@@ -61,5 +64,17 @@ class CachedTrackMetadataRepository(
                 metadata = metadata
             )
         )
+    }
+
+    private fun AlbumEntity.hasUsableMetadata(): Boolean {
+        return listOfNotNull(primaryGenre, secondaryGenre)
+            .any { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) } ||
+            genres.any { it.isNotBlank() && !it.equals("unknown", ignoreCase = true) }
+    }
+
+    private fun TrackMetadata.hasUsableMetadata(): Boolean {
+        return primaryGenre != GenreCategory.UNKNOWN ||
+            secondaryGenre?.let { it != GenreCategory.UNKNOWN } == true ||
+            genreCandidates.isNotEmpty()
     }
 }

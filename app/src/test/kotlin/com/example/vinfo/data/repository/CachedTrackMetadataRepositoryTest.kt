@@ -89,6 +89,62 @@ class CachedTrackMetadataRepositoryTest {
         assertEquals("Trap", dao.insertedAlbum?.primaryGenre)
     }
 
+    @Test
+    fun `fetchTrackMetadata ignores incomplete cached album and refreshes Gemini`() = runBlocking {
+        val incompleteCache = AlbumEntity(
+            id = "bad-cache",
+            albumTitle = "The Life of Pablo",
+            artist = "Kanye West",
+            album = "The Life of Pablo",
+            genres = listOf("Unknown"),
+            primaryGenre = null,
+            secondaryGenre = null,
+            rymRating = null,
+            pitchforkScore = null,
+            metacriticScore = null,
+            aotyScore = null,
+            criticsSummary = null,
+            listeningGuide = null,
+            date = "2026.06.05"
+        )
+        val dao = FakeAlbumDao(cachedByAlbum = incompleteCache)
+        val remote = CountingTrackMetadataRepository(
+            result = AppResult.Success(
+                TrackMetadata(
+                    artist = "Kanye West",
+                    title = "Ultralight Beam",
+                    album = "The Life of Pablo",
+                    primaryGenre = GenreCategory.HIP_HOP,
+                    secondaryGenre = null,
+                    genreSource = GenreSource.LLM,
+                    rymRating = 3.47f,
+                    pitchforkScore = 9.0f,
+                    metacriticScore = 75,
+                    aotyScore = 78,
+                    criticsSummary = "새로 받은 앨범 평론",
+                    interviewSummary = null,
+                    listeningGuide = "새로 받은 감상 가이드",
+                    samplesUsed = emptyList(),
+                    missingSources = emptyList(),
+                    reliabilityNotes = emptyList()
+                )
+            )
+        )
+        val repository = CachedTrackMetadataRepository(dao, remote)
+
+        val result = repository.fetchTrackMetadata(
+            artist = "Kanye West",
+            title = "Ultralight Beam",
+            album = "The Life of Pablo",
+            apiKey = "test-key"
+        )
+
+        assertTrue(result is AppResult.Success<*>)
+        assertEquals(1, remote.callCount)
+        assertEquals("Hip Hop", dao.insertedAlbum?.primaryGenre)
+        assertEquals(3.47f, dao.insertedAlbum?.rymRating ?: 0f, 0.001f)
+    }
+
     private class CountingTrackMetadataRepository(
         private val result: AppResult<TrackMetadata> = AppResult.Error("remote should not be called")
     ) : TrackMetadataRepository {

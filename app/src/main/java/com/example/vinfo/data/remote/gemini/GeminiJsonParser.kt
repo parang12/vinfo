@@ -85,10 +85,35 @@ class GeminiJsonParser {
         fallbackTitle: String?,
         fallbackAlbum: String?
     ): com.example.vinfo.data.remote.perplexity.TrackMetadataDto {
+        val fallbackGenreCandidates = optGenreCandidates(GenreCandidateTier.PRIMARY, "genres")
+        val explicitPrimaryCandidates = optGenreCandidates(
+            GenreCandidateTier.PRIMARY,
+            "primary_genres",
+            "primaryGenres",
+            "primaryGenre"
+        )
+        val primaryCandidates = explicitPrimaryCandidates.ifEmpty {
+            fallbackGenreCandidates.take(1)
+        }
+        val explicitSecondaryCandidates = optGenreCandidates(
+            GenreCandidateTier.SECONDARY,
+            "secondary_genres",
+            "secondaryGenres",
+            "secondaryGenre"
+        )
+        val secondaryCandidates = explicitSecondaryCandidates.ifEmpty {
+            fallbackGenreCandidates.drop(1).map { it.copy(tier = GenreCandidateTier.SECONDARY) }
+        }
+        val microCandidates = optGenreCandidates(
+            GenreCandidateTier.MICRO,
+            "microgenres",
+            "microGenres",
+            "micro_genres"
+        )
         val genreCandidates = buildList {
-            addAll(optGenreCandidates("primary_genres", GenreCandidateTier.PRIMARY))
-            addAll(optGenreCandidates("secondary_genres", GenreCandidateTier.SECONDARY))
-            addAll(optGenreCandidates("microgenres", GenreCandidateTier.MICRO))
+            addAll(primaryCandidates)
+            addAll(secondaryCandidates)
+            addAll(microCandidates)
         }
         val primaryGenre = genreCandidates.firstOrNull { it.tier == GenreCandidateTier.PRIMARY }?.name
             ?: optString("primary_genre").trim()
@@ -106,10 +131,14 @@ class GeminiJsonParser {
             secondaryGenre = secondaryGenre,
             genreCandidates = genreCandidates,
             genreSource = optNullableString("genre_source"),
-            rymRating = optNullableFloat("rym_rating"),
-            pitchforkScore = optNullableFloat("pitchfork_score"),
-            metacriticScore = optNullableInt("metacritic_score"),
-            aotyScore = optNullableInt("aoty_score"),
+            rymRating = optNullableFloat("rym_rating")
+                ?: optNestedNullableFloat("ratings", "rym", "rate_your_music", "rateYourMusic"),
+            pitchforkScore = optNullableFloat("pitchfork_score")
+                ?: optNestedNullableFloat("ratings", "pitchfork", "pitchfork_score", "pitchforkScore"),
+            metacriticScore = optNullableInt("metacritic_score")
+                ?: optNestedNullableInt("ratings", "metacritic", "metacritic_score", "metacriticScore"),
+            aotyScore = optNullableInt("aoty_score")
+                ?: optNestedNullableInt("ratings", "aoty", "album_of_the_year", "albumOfTheYear"),
             criticsSummary = optFirstString("critics_summary", "criticsSummary", "review_summary", "reviewSummary").orEmpty(),
             interviewSummary = optNullableString("interview_summary"),
             listeningGuide = optFirstString("listening_guide", "listeningGuide", "listening_notes", "listeningNotes").orEmpty(),
@@ -120,10 +149,10 @@ class GeminiJsonParser {
     }
 
     private fun JSONObject.optGenreCandidates(
-        key: String,
-        tier: GenreCandidateTier
+        tier: GenreCandidateTier,
+        vararg keys: String
     ): List<AlbumGenreCandidate> {
-        val array = optJSONArray(key) ?: return emptyList()
+        val array = keys.firstNotNullOfOrNull { key -> optJSONArray(key) } ?: return emptyList()
         return buildList {
             for (index in 0 until array.length()) {
                 val item = array.optJSONObject(index)
@@ -172,6 +201,16 @@ class GeminiJsonParser {
             is String -> value.toNumericStringOrNull()?.toFloatOrNull()?.toInt()
             else -> null
         }
+    }
+
+    private fun JSONObject.optNestedNullableFloat(parentKey: String, vararg childKeys: String): Float? {
+        val parent = optJSONObject(parentKey) ?: return null
+        return childKeys.firstNotNullOfOrNull { key -> parent.optNullableFloat(key) }
+    }
+
+    private fun JSONObject.optNestedNullableInt(parentKey: String, vararg childKeys: String): Int? {
+        val parent = optJSONObject(parentKey) ?: return null
+        return childKeys.firstNotNullOfOrNull { key -> parent.optNullableInt(key) }
     }
 
     private fun String.toNumericStringOrNull(): String? {

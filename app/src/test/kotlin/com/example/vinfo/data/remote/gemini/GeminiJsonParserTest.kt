@@ -257,4 +257,43 @@ class GeminiJsonParserTest {
         assertEquals("See Me Now", dto.title)
         assertEquals("My Beautiful Dark Twisted Fantasy", dto.album)
     }
+
+    @Test
+    fun `parseTrackMetadata accepts alternate genre arrays and nested ratings`() {
+        val json = """
+            {
+              "album_title": "The Life of Pablo",
+              "genres": [
+                { "name": "Experimental Hip Hop", "confidence": 0.89 },
+                { "name": "Gospel Rap", "confidence": 0.78 }
+              ],
+              "ratings": {
+                "rym": "3.47/5",
+                "pitchfork": "9.0/10",
+                "metacritic": "75/100",
+                "aoty": "78/100"
+              },
+              "review_summary": "앨범 기준 요약",
+              "listening_guide": "앨범 맥락 감상 포인트"
+            }
+        """.trimIndent()
+
+        val parser = GeminiJsonParser()
+        val result = parser.parseTrackMetadata(
+            rawResponse = json,
+            fallbackArtist = "Kanye West",
+            fallbackTitle = "Ultralight Beam",
+            fallbackAlbum = null
+        )
+
+        assertTrue(result is AppResult.Success)
+        val dto = (result as AppResult.Success).data
+        assertEquals("The Life of Pablo", dto.album)
+        assertEquals("Experimental Hip Hop", dto.primaryGenre)
+        assertEquals("Gospel Rap", dto.secondaryGenre)
+        assertEquals(3.47f, dto.rymRating!!, 0.001f)
+        assertEquals(9.0f, dto.pitchforkScore!!, 0.001f)
+        assertEquals(75, dto.metacriticScore)
+        assertEquals(78, dto.aotyScore)
+    }
 }
