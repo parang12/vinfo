@@ -308,6 +308,7 @@ internal data class GenreMapUiState(
             FlowNode("Pop Rap", Offset(0.86f, 0.76f)),
             FlowNode("Art Pop", Offset(0.92f, 0.55f)),
             FlowNode("Electronic", Offset(0.58f, 0.86f)),
+            FlowNode("Synth-pop", Offset(0.74f, 0.82f)),
             FlowNode("House", Offset(0.74f, 0.92f)),
             FlowNode("Ambient", Offset(0.90f, 0.92f))
         )
@@ -330,6 +331,8 @@ internal data class GenreMapUiState(
             FlowLink("Neo Soul", "Art Pop"),
             FlowLink("Pop Rap", "Art Pop"),
             FlowLink("Funk", "Electronic"),
+            FlowLink("Synth-pop", "Electronic"),
+            FlowLink("Synth-pop", "Art Pop"),
             FlowLink("Electronic", "House"),
             FlowLink("Electronic", "Ambient"),
             FlowLink("Art Pop", "Electronic")
@@ -469,6 +472,7 @@ private fun String.toMapGenreName(): String? {
     return when {
         normalized.isBlank() || normalized == "unknown" -> null
         "progressive rap" in normalized -> "Progressive Rap"
+        "synth-pop" in normalized || "synth pop" in normalized || "synthpop" in normalized -> "Synth-pop"
         "jazz rap" in normalized -> "Jazz Rap"
         "blues" in normalized -> "Blues"
         "neo soul" in normalized -> "Neo Soul"

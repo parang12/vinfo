@@ -163,6 +163,30 @@ class GenreMapUiStateDiscoveryTest {
     }
 
     @Test
+    fun `fromArchive activates synth pop node saved from Imaginal Disk metadata`() {
+        val state = GenreMapUiState.fromArchive(
+            listOf(
+                DummyArchive(
+                    id = "imaginal-disk",
+                    title = "Imaginal Disk",
+                    artist = "Magdalena Bay",
+                    genres = listOf("Synth-pop"),
+                    date = "2026.06.07"
+                )
+            )
+        )
+
+        val synthPopNode = state.nodes.firstOrNull { it.label == "Synth-pop" }
+        val electronicNode = state.nodes.firstOrNull { it.label == "Electronic" }
+
+        assertNotNull(synthPopNode)
+        assertEquals(GenreMapNodeType.Activated, synthPopNode!!.type)
+        assertEquals(1, synthPopNode.saveCount)
+        assertNotNull(electronicNode)
+        assertEquals(GenreMapNodeType.Adjacent, electronicNode!!.type)
+    }
+
+    @Test
     fun `saved MBDTF album metadata syncs specific genre into map state`() {
         val track = NowPlayingTrack(
             artist = "Kanye West",
