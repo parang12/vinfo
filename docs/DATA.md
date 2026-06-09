@@ -573,6 +573,7 @@ sealed interface AppResult<out T> {
 - `review_status`는 기본값 `PENDING`이며, 검수 완료 시 `CONFIRMED`와 `reviewed_at_millis`를 기록한다.
 - `GeminiGenreRelationDiscoveryRepository`는 캐시가 있으면 Gemini를 호출하지 않고 캐시 후보를 반환한다.
 - 캐시가 없고 Gemini/curated fallback 결과가 있으면 후보를 Room에 저장하여 다음 검색과 검수 큐에서 재사용한다.
+- `GenreMapScreen`은 `PENDING` 검수 큐 개수를 상단 패널에 표시하고, 사용자가 큐 항목을 확정하면 세션 지도에 후보 노드/엣지를 반영한 뒤 `CONFIRMED`로 표시한다.
 
 ---
 

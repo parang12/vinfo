@@ -56,4 +56,37 @@ class GenreMapDiscoveryReducerTest {
         assertEquals(0.9f, electropop.score, 0.001f)
         assertEquals("강한 근거", electropop.evidence)
     }
+
+    @Test
+    fun `loading pending review items exposes review queue count`() {
+        val state = GenreMapDiscoveryState().showPendingReviews(
+            listOf(
+                GenreRelationReviewItem(
+                    sourceGenre = "Jazz",
+                    candidates = listOf(GenreRelationCandidate("Blues", 0.82f, "root", "근거"))
+                )
+            )
+        )
+
+        assertEquals(1, state.pendingReviewCount)
+        assertEquals("Jazz", state.pendingReviews.single().sourceGenre)
+    }
+
+    @Test
+    fun `confirming pending review moves it into confirmed discoveries and removes queue item`() {
+        val state = GenreMapDiscoveryState()
+            .showPendingReviews(
+                listOf(
+                    GenreRelationReviewItem(
+                        sourceGenre = "Jazz",
+                        candidates = listOf(GenreRelationCandidate("Blues", 0.82f, "root", "근거"))
+                    )
+                )
+            )
+            .confirmPendingReview("Jazz")
+
+        assertEquals(0, state.pendingReviewCount)
+        assertEquals("Jazz", state.confirmedDiscoveries.single().sourceGenre)
+        assertEquals("Blues", state.confirmedDiscoveries.single().candidates.single().genreName)
+    }
 }

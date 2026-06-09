@@ -291,6 +291,7 @@ fun MainScreen(
                     onFindNearbyGenres = genreMapViewModel::findNearbyGenres,
                     onDismissDiscoveryPopup = genreMapViewModel::dismissDiscoveryPopup,
                     onConfirmDiscoveryCandidates = genreMapViewModel::confirmDiscoveryCandidates,
+                    onConfirmPendingReview = genreMapViewModel::confirmPendingReview,
                     onBackClick = { navController.popBackStack() },
                     onSettingsClick = { navController.navigate(Route.Settings.path) },
                 )

@@ -408,6 +408,7 @@ internal fun GenreMapScreen(
     onFindNearbyGenres: (String) -> Unit = {},
     onDismissDiscoveryPopup: () -> Unit = {},
     onConfirmDiscoveryCandidates: (List<GenreRelationCandidate>) -> Unit = {},
+    onConfirmPendingReview: (String) -> Unit = {},
     onGenreClick: (String) -> Unit = {},
     onEdgeClick: (String) -> Unit = {},
     onBackClick: () -> Unit = {},
@@ -421,6 +422,7 @@ internal fun GenreMapScreen(
     var selectedNode by remember(mapState.nodes) { mutableStateOf(mapState.nodes.firstOrNull()) }
     var selectedEdge by remember { mutableStateOf<GenreMapEdgeUi?>(null) }
     var bottomSheetState by rememberSaveable { mutableStateOf(TasteFlowSheetState.Expanded) }
+    var isReviewQueueVisible by rememberSaveable { mutableStateOf(false) }
     var scale by rememberSaveable { mutableStateOf(0.92f) }
     var panX by rememberSaveable { mutableStateOf(0f) }
     var panY by rememberSaveable { mutableStateOf(12f) }
@@ -459,6 +461,8 @@ internal fun GenreMapScreen(
 
         MapTopPanel(
             mapState = mapState,
+            pendingReviewCount = discoveryState.pendingReviewCount,
+            onReviewQueueClick = { isReviewQueueVisible = true },
             onBackClick = onBackClick,
             onSettingsClick = onSettingsClick,
             modifier = Modifier
@@ -531,11 +535,24 @@ internal fun GenreMapScreen(
             onConfirm = onConfirmDiscoveryCandidates
         )
     }
+
+    if (isReviewQueueVisible) {
+        GenreRelationReviewQueueDialog(
+            pendingReviews = discoveryState.pendingReviews,
+            onDismiss = { isReviewQueueVisible = false },
+            onConfirm = { sourceGenre ->
+                onConfirmPendingReview(sourceGenre)
+                isReviewQueueVisible = false
+            }
+        )
+    }
 }
 
 @Composable
 private fun MapTopPanel(
     mapState: GenreMapUiState,
+    pendingReviewCount: Int,
+    onReviewQueueClick: () -> Unit,
     onBackClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -589,7 +606,15 @@ private fun MapTopPanel(
             ) {
                 MapMetric(label = "활성 장르", value = "${mapState.activeGenreCount}개", modifier = Modifier.weight(1f))
                 MapMetric(label = "연결 후보", value = "${mapState.candidateGenreCount}개", modifier = Modifier.weight(1f))
-                MapMetric(label = "최근 열린 흐름", value = "${mapState.recentFlowCount}개", modifier = Modifier.weight(1f))
+                MapMetric(
+                    label = "검수 대기",
+                    value = "${pendingReviewCount}개",
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(enabled = pendingReviewCount > 0, onClick = onReviewQueueClick)
+                        .padding(vertical = 2.dp)
+                )
             }
         }
     }
@@ -927,6 +952,97 @@ private fun NearbyGenreDiscoveryDialog(
                 enabled = selectedCandidates.isNotEmpty()
             ) {
                 Text("선택 반영")
+            }
+        }
+    )
+}
+
+@Composable
+private fun GenreRelationReviewQueueDialog(
+    pendingReviews: List<GenreRelationReviewItem>,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "장르 관계 검수 큐",
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (pendingReviews.isEmpty()) {
+                    Text(
+                        text = "검수할 장르 관계가 없습니다.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    pendingReviews.forEach { review ->
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.60f)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = review.sourceGenre,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "${review.candidates.size}개 후보",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF0058BC)
+                                    )
+                                }
+                                review.candidates.take(3).forEach { candidate ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = candidate.genreName,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Text(
+                                            text = candidate.strength.koreanLabel,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                                TextButton(
+                                    modifier = Modifier.align(Alignment.End),
+                                    onClick = { onConfirm(review.sourceGenre) }
+                                ) {
+                                    Text("지도에 확정")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("닫기")
             }
         }
     )
