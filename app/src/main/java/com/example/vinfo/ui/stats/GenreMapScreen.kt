@@ -399,6 +399,16 @@ private fun GenreMapNodeType.koreanLabel(): String = when (this) {
     GenreMapNodeType.Locked -> "미탐험"
 }
 
+internal fun relatedAlbumsForNode(
+    selectedNode: GenreMapNodeUi?,
+    albums: List<DummyArchive>
+): List<DummyArchive> {
+    val selectedGenreKey = selectedNode?.label?.toGenreKey() ?: return emptyList()
+    return albums.filter { album ->
+        album.genres.any { genre -> genre.toGenreKey() == selectedGenreKey }
+    }
+}
+
 @Composable
 internal fun GenreMapScreen(
     modifier: Modifier = Modifier,
@@ -487,7 +497,7 @@ internal fun GenreMapScreen(
 
         TasteFlowBottomSheet(
             selectedNode = selectedNode,
-            recentAlbums = mapState.recentAlbums,
+            relatedAlbums = relatedAlbumsForNode(selectedNode, mapState.recentAlbums),
             isDiscoveryLoading = discoveryState.isLoading,
             sheetState = bottomSheetState,
             onSheetStateChange = { bottomSheetState = it },
@@ -684,7 +694,7 @@ private fun MapFloatingControls(
 @Composable
 private fun TasteFlowBottomSheet(
     selectedNode: GenreMapNodeUi?,
-    recentAlbums: List<DummyArchive>,
+    relatedAlbums: List<DummyArchive>,
     isDiscoveryLoading: Boolean,
     sheetState: TasteFlowSheetState,
     onSheetStateChange: (TasteFlowSheetState) -> Unit,
@@ -767,8 +777,8 @@ private fun TasteFlowBottomSheet(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = selectedNode?.note
-                            ?: "저장한 앨범을 바탕으로 장르가 어떻게 이어지는지 확인할 수 있습니다.",
+                    text = selectedNode?.note
+                        ?: "저장한 앨범을 바탕으로 장르가 어떻게 이어지는지 확인할 수 있습니다.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -800,7 +810,7 @@ private fun TasteFlowBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "최근 저장한 앨범",
+                    text = selectedNode?.let { "${it.label} 저장 앨범" } ?: "저장 앨범",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -813,14 +823,15 @@ private fun TasteFlowBottomSheet(
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
-            if (recentAlbums.isEmpty()) {
+            if (relatedAlbums.isEmpty()) {
                 Text(
-                    text = "보관함에 앨범을 저장하면 이곳에 표시됩니다.",
+                    text = selectedNode?.let { "이 장르로 저장된 앨범이 아직 없습니다." }
+                        ?: "지도에서 장르를 선택하면 해당 장르의 저장 앨범을 보여줍니다.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                recentAlbums.forEach { album ->
+                relatedAlbums.forEach { album ->
                     RecentAlbumRow(album = album)
                 }
             }

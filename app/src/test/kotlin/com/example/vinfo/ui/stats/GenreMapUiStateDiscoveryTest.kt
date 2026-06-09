@@ -187,6 +187,67 @@ class GenreMapUiStateDiscoveryTest {
     }
 
     @Test
+    fun `relatedAlbumsForNode returns albums that match selected map node genre`() {
+        val albums = listOf(
+            DummyArchive(
+                id = "imaginal-disk",
+                title = "Imaginal Disk",
+                artist = "Magdalena Bay",
+                genres = listOf("Synth-pop", "Art Pop"),
+                date = "2026.06.07"
+            ),
+            DummyArchive(
+                id = "culture",
+                title = "Culture",
+                artist = "Migos",
+                genres = listOf("Trap"),
+                date = "2026.06.06"
+            )
+        )
+        val selectedNode = GenreMapNodeUi(
+            id = "synthpop",
+            genreKey = "SYNTH_POP",
+            label = "Synth-pop",
+            note = "저장 앨범 1개",
+            saveCount = 1,
+            lastActivatedText = "자동 반영",
+            type = GenreMapNodeType.Activated,
+            position = androidx.compose.ui.geometry.Offset.Zero,
+            accessibilityLabel = "Synth-pop"
+        )
+
+        val relatedAlbums = relatedAlbumsForNode(selectedNode, albums)
+
+        assertEquals(listOf("Imaginal Disk"), relatedAlbums.map { it.title })
+    }
+
+    @Test
+    fun `relatedAlbumsForNode returns empty for adjacent node without saved albums`() {
+        val albums = listOf(
+            DummyArchive(
+                id = "imaginal-disk",
+                title = "Imaginal Disk",
+                artist = "Magdalena Bay",
+                genres = listOf("Synth-pop"),
+                date = "2026.06.07"
+            )
+        )
+        val selectedNode = GenreMapNodeUi(
+            id = "electronic",
+            genreKey = "ELECTRONIC",
+            label = "Electronic",
+            note = "연결 후보",
+            saveCount = 0,
+            lastActivatedText = "대기 중",
+            type = GenreMapNodeType.Adjacent,
+            position = androidx.compose.ui.geometry.Offset.Zero,
+            accessibilityLabel = "Electronic"
+        )
+
+        assertTrue(relatedAlbumsForNode(selectedNode, albums).isEmpty())
+    }
+
+    @Test
     fun `saved MBDTF album metadata syncs specific genre into map state`() {
         val track = NowPlayingTrack(
             artist = "Kanye West",

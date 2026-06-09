@@ -65,6 +65,7 @@
 - 홈의 `맵 열기` 액션에서 전체 화면 장르 지도로 이동한다.
 - 캔버스는 드래그 이동, 핀치 줌, 확대/축소, 중앙 복귀를 지원한다.
 - 현재 구현은 아카이브의 정규화 장르, `GenreDictionary`, `CuratedGenreRelations`, `GetVisibleGenreFlowUseCase`를 사용하며, 활성 노드와 직접 연결된 1-hop 주변 후보만 렌더링한다.
+- 하단 시트는 선택한 노드의 장르와 일치하는 저장 앨범만 표시한다. 예를 들어 `Imaginal Disk`가 `Synth-pop`으로 저장되면 Synth-pop 노드 선택 시 해당 앨범이 표시된다.
 - 알 수 없는 장르, 사전 미등록 장르, 직접 연결되지 않은 노드는 화면 모델에서 제외한다.
 - `GenreDictionary`는 Kotlin 리소스로 버전 관리하며, [GENRE_TAXONOMY.md](GENRE_TAXONOMY.md)의 Root Genre 정책에 따라 alias 매칭과 사전 미등록 후보 제외를 수행한다.
 - 신생 장르는 Root Genre 검증을 통과한 경우에만 `EMERGING`/`NEEDS_REVIEW` 상태로 모델링하며, 기본 지도/통계에는 검증된 장르와 직접 연결 후보만 반영한다.
