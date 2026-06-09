@@ -191,7 +191,7 @@ class GeminiJsonParser {
                 "listening_notes",
                 "listeningNotes",
                 "guide"
-            ).orEmpty(),
+            )?.takeIf { it.hasHangul() }.orEmpty(),
             samplesUsed = optStringList("samples_used", "samplesUsed", "samples"),
             missingSources = optStringList("missing_sources", "missingSources"),
             reliabilityNotes = optStringList("reliability_notes", "reliabilityNotes")
@@ -323,11 +323,34 @@ class GeminiJsonParser {
 
         return buildList {
             for (index in 0 until array.length()) {
-                val value = array.optString(index).trim()
+                val value = when (val item = array.opt(index)) {
+                    is JSONObject -> item.toSampleLabel()
+                    else -> array.optString(index).trim()
+                }
                 if (value.isNotBlank()) {
                     add(value)
                 }
             }
         }
+    }
+
+    private fun JSONObject.toSampleLabel(): String {
+        val artist = optNullableString("artist")
+        val title = optNullableString("title")
+        val sampleType = optFirstString("sample_type", "sampleType", "type")
+
+        val base = listOfNotNull(artist, title)
+            .joinToString(" - ")
+            .ifBlank { optFirstString("name", "label", "evidence_text", "evidenceText").orEmpty() }
+
+        return if (!sampleType.isNullOrBlank() && base.isNotBlank()) {
+            "$base ($sampleType)"
+        } else {
+            base
+        }
+    }
+
+    private fun String.hasHangul(): Boolean {
+        return any { it in '\uAC00'..'\uD7A3' }
     }
 }

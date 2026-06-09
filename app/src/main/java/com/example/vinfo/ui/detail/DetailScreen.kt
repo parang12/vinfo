@@ -65,6 +65,7 @@ import com.example.vinfo.ui.component.MetadataCard
 import com.example.vinfo.ui.component.SectionHeader
 import com.example.vinfo.ui.component.VinfoCard
 import com.example.vinfo.ui.theme.VinfoTheme
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -243,7 +244,7 @@ fun DetailScreen(
                             GuideItem(
                                 icon = Icons.Default.CenterFocusStrong,
                                 title = "샘플 정보",
-                                text = samplesUsed.joinToString(separator = "\n")
+                                text = buildSampleInfoText(samplesUsed)
                             )
                         }
                     }
@@ -357,6 +358,34 @@ internal fun buildGenreLabels(trackMetadata: TrackMetadata?): List<String> {
             trackMetadata.secondaryGenre?.takeUnless { it == GenreCategory.UNKNOWN }?.displayName()
         )
     }.distinct()
+}
+
+internal fun buildSampleInfoText(samplesUsed: List<String>): String {
+    return samplesUsed
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .map(::formatSampleInfo)
+        .joinToString(separator = "\n")
+}
+
+private fun formatSampleInfo(rawSample: String): String {
+    val json = runCatching { JSONObject(rawSample) }.getOrNull() ?: return rawSample
+    val artist = json.optCleanString("artist")
+    val title = json.optCleanString("title")
+    val sampleType = json.optCleanString("sample_type") ?: json.optCleanString("sampleType") ?: json.optCleanString("type")
+    val base = listOfNotNull(artist, title).joinToString(" - ")
+        .ifBlank { json.optCleanString("name") ?: json.optCleanString("label") ?: rawSample }
+
+    return if (!sampleType.isNullOrBlank() && base != rawSample) {
+        "$base ($sampleType)"
+    } else {
+        base
+    }
+}
+
+private fun JSONObject.optCleanString(key: String): String? {
+    if (!has(key) || isNull(key)) return null
+    return optString(key).trim().takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
 }
 
 private data class AlbumRatingUi(

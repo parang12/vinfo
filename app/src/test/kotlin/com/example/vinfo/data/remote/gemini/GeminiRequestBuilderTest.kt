@@ -57,6 +57,8 @@ class GeminiRequestBuilderTest {
         assertTrue(systemText.contains("canonical album"))
         assertTrue(systemText.contains("Step 2"))
         assertTrue(systemText.contains("identified album"))
+        assertTrue(systemText.contains("listening_guide must be written in Korean"))
+        assertTrue(systemText.contains("samples_used must be an array of short strings"))
         assertEquals(0, googleSearchTool.length())
         assertTrue(userText.contains("Artist: Test Artist"))
         assertTrue(userText.contains("Title: Test Title"))

@@ -361,4 +361,62 @@ class GeminiJsonParserTest {
         assertEquals("보컬 샘플의 질감과 드럼 배치를 중심으로 감상한다.", dto.listeningGuide)
         assertEquals(listOf("Chaka Khan - Through the Fire"), dto.samplesUsed)
     }
+
+    @Test
+    fun `parseTrackMetadata formats structured sample objects as readable labels`() {
+        val json = """
+            {
+              "artist": "Kanye West",
+              "title": "School Spirit",
+              "album": "The College Dropout",
+              "primary_genre": "Chipmunk Soul",
+              "listening_guide": "소울 샘플의 피치 변화와 드럼 반복을 중심으로 감상한다.",
+              "samples_used": [
+                {
+                  "artist": "Aretha Franklin",
+                  "title": "Spirit in the Dark",
+                  "sample_type": "contains sample",
+                  "evidence_text": "With a sped-up loop of Aretha Franklin's Spirit in the Dark."
+                },
+                {
+                  "artist": "Luther Vandross",
+                  "title": "A House Is Not A Home",
+                  "sample_type": "interpolation"
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val result = GeminiJsonParser().parseTrackMetadata(json)
+
+        assertTrue(result is AppResult.Success)
+        val dto = (result as AppResult.Success).data
+        assertEquals(
+            listOf(
+                "Aretha Franklin - Spirit in the Dark (contains sample)",
+                "Luther Vandross - A House Is Not A Home (interpolation)"
+            ),
+            dto.samplesUsed
+        )
+    }
+
+    @Test
+    fun `parseTrackMetadata does not keep English listening guide text`() {
+        val json = """
+            {
+              "artist": "Kanye West",
+              "title": "Dark Fantasy",
+              "album": "My Beautiful Dark Twisted Fantasy",
+              "primary_genre": "Progressive Rap",
+              "listening_guide": "Listen for the orchestral swells and maximalist production.",
+              "samples_used": []
+            }
+        """.trimIndent()
+
+        val result = GeminiJsonParser().parseTrackMetadata(json)
+
+        assertTrue(result is AppResult.Success)
+        val dto = (result as AppResult.Success).data
+        assertEquals("", dto.listeningGuide)
+    }
 }
