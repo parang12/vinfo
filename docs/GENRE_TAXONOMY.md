@@ -194,10 +194,10 @@ Jazz Rap 12%
 
 문서 계약을 코드로 옮길 때의 우선순위:
 
-1. `RootGenreKey`, `GenreEntryStatus` 모델 추가.
-2. `GenreDictionary`를 버전 관리되는 JSON 또는 Kotlin 리소스로 분리.
-3. `NormalizeAlbumGenreCandidatesUseCase`에서 alias 매칭, root 검증, emerging 후보 필터링 수행.
-4. `GetVisibleGenreFlowUseCase`에서 root/verified/emerging 표시 정책을 적용.
+1. `GenreRoot`, `NormalizedGenreStatus` 모델을 유지한다.
+2. `GenreDictionary`를 버전 관리되는 Kotlin 리소스로 관리한다.
+3. `NormalizeAlbumGenreCandidatesUseCase`에서 alias 매칭, root 검증, 사전 미등록 후보 필터링을 수행한다.
+4. `GetVisibleGenreFlowUseCase`에서 활성 장르와 직접 연결된 1-hop 후보만 지도에 표시한다.
 5. Archive/Stats는 root 집계와 세부 장르 drill-down을 분리한다.
 
 ---

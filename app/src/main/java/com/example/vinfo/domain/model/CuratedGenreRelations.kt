@@ -27,12 +27,14 @@ object CuratedGenreRelations {
         relation("Art Pop", "Electronic")
     )
 
+    fun directRelations(): List<CuratedGenreRelation> = relations
+
     fun nearbyGenres(sourceGenre: String): List<GenreRelationCandidate> {
-        val sourceKey = sourceGenre.normalizedGenreKey()
+        val sourceKey = sourceGenre.toGenreKey()
         return relations
-            .filter { it.source.normalizedGenreKey() == sourceKey || it.target.normalizedGenreKey() == sourceKey }
+            .filter { it.sourceKey == sourceKey || it.targetKey == sourceKey }
             .map { relation ->
-                val target = if (relation.source.normalizedGenreKey() == sourceKey) relation.target else relation.source
+                val target = if (relation.sourceKey == sourceKey) relation.target else relation.source
                 GenreRelationCandidate(
                     genreName = target,
                     score = relation.score,
@@ -40,7 +42,7 @@ object CuratedGenreRelations {
                     evidence = "앱의 장르 맵 사전에 등록된 직접 연결입니다."
                 )
             }
-            .distinctBy { it.genreName.normalizedGenreKey() }
+            .distinctBy { it.genreName.toGenreKey() }
             .sortedByDescending(GenreRelationCandidate::score)
     }
 
@@ -48,17 +50,12 @@ object CuratedGenreRelations {
         source: String,
         target: String,
         score: Float = 0.72f
-    ): CuratedRelation = CuratedRelation(source, target, score)
-
-    private data class CuratedRelation(
-        val source: String,
-        val target: String,
-        val score: Float
-    )
-
-    private fun String.normalizedGenreKey(): String {
-        return trim()
-            .lowercase()
-            .replace(Regex("""[^a-z0-9]+"""), "")
+    ): CuratedGenreRelation {
+        return CuratedGenreRelation(
+            source = source,
+            target = target,
+            score = score,
+            evidence = "앱의 장르 맵 사전에 등록된 직접 연결입니다."
+        )
     }
 }

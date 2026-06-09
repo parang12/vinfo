@@ -28,12 +28,12 @@
 - [x] 주변 장르 후보 필터/파서/reducer 단위 테스트
 - [x] Gemini 장르 응답을 `primary_genres`, `secondary_genres`, `microgenres` 후보 배열 + 신뢰도로 확장
 - [x] Root Genre 기반 신생 장르 검증 정책 문서화 (`GENRE_TAXONOMY.md`)
-- [ ] 검수된 `GenreDictionary`를 버전 관리되는 JSON/Kotlin 리소스로 분리
-- [ ] `NormalizeAlbumGenreCandidatesUseCase`, `GetVisibleGenreFlowUseCase` 구현 및 단위 테스트
-- [ ] 신생 장르 Root 검증 로직 구현: Root confidence 미달 후보 제외, 통과 후보는 `EMERGING`/`NEEDS_REVIEW`로 분리
+- [x] 검수된 `GenreDictionary`를 버전 관리되는 Kotlin 리소스로 분리
+- [x] `NormalizeAlbumGenreCandidatesUseCase`, `GetVisibleGenreFlowUseCase` 구현 및 단위 테스트
+- [x] 신생 장르 Root 검증 로직 구현: 사전 미등록/Unknown 후보 제외, 검증 상태(`VERIFIED`/`EMERGING`/`NEEDS_REVIEW`) 모델화
 - [x] Room Archive에 `genre_candidates_json` 저장 컬럼 추가
 - [ ] 주변 장르 검색 결과 Room 캐시 및 검수 큐 설계
-- [ ] UI 통합 테스트: 활성 노드 + 직접 연결된 1-hop 후보만 표시, unknown 비노출, pan/zoom 플로우
+- [x] UI 상태 테스트: 활성 노드 + 직접 연결된 1-hop 후보만 표시, unknown 비노출, pan/zoom reducer 검증
 
 ## 4. 아키텍처 및 품질 개선
 - [ ] **Clean Architecture 적용**: Domain(UseCase) 및 Data(Repository) 계층 분리

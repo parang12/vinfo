@@ -12,7 +12,7 @@ class GeminiJsonParser {
         fallbackArtist: String? = null,
         fallbackTitle: String? = null,
         fallbackAlbum: String? = null
-    ): AppResult<com.example.vinfo.data.remote.perplexity.TrackMetadataDto> {
+    ): AppResult<TrackMetadataDto> {
         val payload = extractGeminiText(rawResponse)
         val jsonText = if (payload != null) {
             extractFirstJsonObject(payload)
@@ -27,7 +27,6 @@ class GeminiJsonParser {
         }
 
         val dto = runCatching {
-            // reuse existing DTO structure from perplexity package
             jsonObject.toTrackMetadataDto(fallbackArtist, fallbackTitle, fallbackAlbum)
         }.getOrElse {
             return AppResult.Error("LLM 필드 검증 실패", it)
@@ -89,7 +88,7 @@ class GeminiJsonParser {
         fallbackArtist: String?,
         fallbackTitle: String?,
         fallbackAlbum: String?
-    ): com.example.vinfo.data.remote.perplexity.TrackMetadataDto {
+    ): TrackMetadataDto {
         val fallbackGenreCandidates = optGenreCandidates(
             GenreCandidateTier.PRIMARY,
             "genres",
@@ -148,7 +147,7 @@ class GeminiJsonParser {
         val secondaryGenre = genreCandidates.firstOrNull { it.tier == GenreCandidateTier.SECONDARY }?.name
             ?: optNullableString("secondary_genre")
 
-        return com.example.vinfo.data.remote.perplexity.TrackMetadataDto(
+        return TrackMetadataDto(
             artist = fallbackArtist?.trim()?.takeIf { it.isNotBlank() }
                 ?: optFirstString("artist", "artist_name", "artistName").orEmpty(),
             title = fallbackTitle?.trim()?.takeIf { it.isNotBlank() }

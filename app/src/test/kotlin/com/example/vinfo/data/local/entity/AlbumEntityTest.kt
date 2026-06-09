@@ -93,7 +93,48 @@ class AlbumEntityTest {
 
         assertEquals("The College Dropout", entity.albumTitle)
         assertEquals("Chipmunk Soul", entity.primaryGenre)
-        assertEquals("Hip Hop", entity.secondaryGenre)
-        assertEquals(listOf("Chipmunk Soul", "Hip Hop"), entity.genres)
+        assertEquals("Hip-Hop", entity.secondaryGenre)
+        assertEquals(listOf("Chipmunk Soul", "Hip-Hop"), entity.genres)
+    }
+
+    @Test
+    fun `fromTrackSnapshot stores normalized representative genres only`() {
+        val track = NowPlayingTrack(
+            artist = "Magdalena Bay",
+            title = "Death & Romance",
+            album = "Imaginal Disk",
+            albumArtUrl = null,
+            sourcePackageName = "com.test.player"
+        )
+        val metadata = TrackMetadata(
+            artist = "Magdalena Bay",
+            title = "Death & Romance",
+            album = "Imaginal Disk",
+            primaryGenre = GenreCategory.POP,
+            secondaryGenre = null,
+            genreCandidates = listOf(
+                AlbumGenreCandidate("Synth Pop", 0.92f, GenreCandidateTier.PRIMARY),
+                AlbumGenreCandidate("Unknown Internet Post-Genre", 0.91f, GenreCandidateTier.PRIMARY),
+                AlbumGenreCandidate("Art Pop", 0.76f, GenreCandidateTier.SECONDARY),
+                AlbumGenreCandidate("Pop", 0.72f, GenreCandidateTier.SECONDARY)
+            ),
+            genreSource = GenreSource.LLM,
+            rymRating = null,
+            pitchforkScore = null,
+            metacriticScore = null,
+            aotyScore = null,
+            criticsSummary = "앨범 기준 평론",
+            interviewSummary = null,
+            listeningGuide = "앨범 감상 포인트",
+            samplesUsed = emptyList(),
+            missingSources = emptyList(),
+            reliabilityNotes = emptyList()
+        )
+
+        val entity = AlbumEntity.fromTrackSnapshot("imaginal-disk", track, metadata, savedAtMillis = 0L)
+
+        assertEquals("Synth-pop", entity.primaryGenre)
+        assertEquals("Art Pop", entity.secondaryGenre)
+        assertEquals(listOf("Synth-pop", "Art Pop"), entity.genres)
     }
 }

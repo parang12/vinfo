@@ -8,6 +8,7 @@ import com.example.vinfo.data.settings.ApiKeyStore
 import com.example.vinfo.domain.model.AppResult
 import com.example.vinfo.domain.model.ConfirmedGenreDiscovery
 import com.example.vinfo.domain.model.GenreRelationCandidate
+import com.example.vinfo.domain.model.toGenreKey
 import com.example.vinfo.domain.repository.GenreRelationDiscoveryRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -70,18 +71,18 @@ fun GenreMapDiscoveryState.confirmCandidates(
     if (candidates.isEmpty() || selectedCandidates.isEmpty()) return dismissPopup()
 
     val availableCandidateKeys = candidates
-        .map { it.genreName.normalizedGenreKey() }
+        .map { it.genreName.toGenreKey() }
         .toSet()
     val candidatesToConfirm = selectedCandidates
-        .filter { it.genreName.normalizedGenreKey() in availableCandidateKeys }
+        .filter { it.genreName.toGenreKey() in availableCandidateKeys }
     if (candidatesToConfirm.isEmpty()) return dismissPopup()
 
     val existing = confirmedDiscoveries
-        .firstOrNull { it.sourceGenre.normalizedGenreKey() == source.normalizedGenreKey() }
+        .firstOrNull { it.sourceGenre.toGenreKey() == source.toGenreKey() }
         ?.candidates
         .orEmpty()
     val mergedCandidates = (existing + candidatesToConfirm)
-        .groupBy { it.genreName.normalizedGenreKey() }
+        .groupBy { it.genreName.toGenreKey() }
         .values
         .mapNotNull { duplicates -> duplicates.maxByOrNull(GenreRelationCandidate::score) }
         .sortedByDescending(GenreRelationCandidate::score)
@@ -92,15 +93,9 @@ fun GenreMapDiscoveryState.confirmCandidates(
         candidates = emptyList(),
         errorMessage = null,
         confirmedDiscoveries = confirmedDiscoveries
-            .filterNot { it.sourceGenre.normalizedGenreKey() == source.normalizedGenreKey() } +
+            .filterNot { it.sourceGenre.toGenreKey() == source.toGenreKey() } +
             ConfirmedGenreDiscovery(sourceGenre = source, candidates = mergedCandidates)
     )
-}
-
-private fun String.normalizedGenreKey(): String {
-    return trim()
-        .lowercase()
-        .replace(Regex("""[^a-z0-9]+"""), "")
 }
 
 class GenreMapViewModel @JvmOverloads constructor(

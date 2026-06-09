@@ -1,4 +1,4 @@
-package com.example.vinfo.data.remote.perplexity
+package com.example.vinfo.data.remote.gemini
 
 import com.example.vinfo.domain.model.AlbumGenreCandidate
 

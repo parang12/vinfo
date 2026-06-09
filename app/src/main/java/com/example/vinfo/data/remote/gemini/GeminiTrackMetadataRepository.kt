@@ -101,7 +101,7 @@ class GeminiTrackMetadataRepository(
         }.getOrNull()
     }
 
-    private fun com.example.vinfo.data.remote.perplexity.TrackMetadataDto.toDomainMetadata(): TrackMetadata {
+    private fun TrackMetadataDto.toDomainMetadata(): TrackMetadata {
         return TrackMetadata(
             artist = artist,
             title = title,

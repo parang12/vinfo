@@ -581,7 +581,7 @@ sealed interface AppResult<out T> {
 - `.gitignore`에 `local.properties`를 반드시 포함한다.
 - Release 빌드에는 개발자 개인 키를 포함하지 않는다.
 - 공개 배포 전에는 클라이언트에서 Key를 직접 보유하지 않도록 서버 프록시 구조로 전환한다.
-- `SettingsScreen`의 API Key 입력 UI는 현재 런타임에서 사용하는 Gemini API Key만 표시한다. Perplexity 키 입력은 레거시 저장소 함수가 남아 있어도 설정 화면에 노출하지 않는다.
+- `SettingsScreen`의 API Key 입력 UI와 `ApiKeyStore`는 현재 런타임에서 사용하는 Gemini API Key만 저장/조회한다.
 - Gemini API Key 저장은 `SharedPreferences.commit()`으로 즉시 반영 여부를 확인하고, 저장 직후 같은 저장소에서 다시 읽어 UI에 성공/실패 메시지를 표시한다.
 
 ### 8.3 보안 및 난독화

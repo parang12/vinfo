@@ -21,7 +21,7 @@ vinfo는 유지보수성과 외부 API 종속성 격리를 위해 Clean Architec
 
 세부 데이터 계약은 [docs/DATA.md](DATA.md)에 분리했다.
 
-- [docs/DATA.md](DATA.md): Gemini/Lyrics(및 Perplexity 레거시) 요청 계약, DTO, 저장 구조, 정규화, 오류 처리, 마이그레이션, 테스트
+- [docs/DATA.md](DATA.md): Gemini/Lyrics 요청 계약, DTO, 저장 구조, 정규화, 오류 처리, 마이그레이션, 테스트
 - [docs/GENRE_TAXONOMY.md](GENRE_TAXONOMY.md): Root Genre, Branch/Micro 장르, 신생 장르 검증 정책
 - [docs/SRS.md](SRS.md): 요구사항 정의
 - [docs/UI.md](UI.md): UI/UX 표현 정의

@@ -167,11 +167,11 @@ ArchiveRepository.save() → Room DB 저장
 - [x] Gemini 앨범 기준 평점 JSON 파싱 및 상세 화면 표시
 - [x] lyrics.ovh 원문 가사 조회 연동
 - [ ] 필요 시 Gemini 번역 연동
-- [ ] Room DB 스키마 + DAO 구현
+- [x] Room DB 스키마 + DAO 구현
 - [x] `DetailScreen` UI (앨범 메타데이터 + 원문 가사 렌더링)
 - [x] `ArchiveListScreen` 구현
 - [x] `GenreMapScreen` 전체 화면 pan/zoom 구현
-- [ ] 검수된 `GenreDictionary` 리소스 분리 및 Gemini 장르 후보 배열 연동
+- [x] 검수된 `GenreDictionary` 리소스 분리 및 Gemini 장르 후보 배열 연동
 - [ ] Hilt DI 모듈 전체 연결
 - [ ] 알림 권한 온보딩 플로우
 

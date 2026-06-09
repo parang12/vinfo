@@ -10,6 +10,7 @@ import com.example.vinfo.domain.model.GenreMapper
 import com.example.vinfo.domain.model.GenreSource
 import com.example.vinfo.domain.model.NowPlayingTrack
 import com.example.vinfo.domain.model.TrackMetadata
+import com.example.vinfo.domain.usecase.NormalizeAlbumGenreCandidatesUseCase
 import com.example.vinfo.ui.archive.DummyArchive
 import org.json.JSONArray
 import org.json.JSONObject
@@ -64,11 +65,9 @@ data class AlbumEntity(
             metadata: TrackMetadata,
             savedAtMillis: Long = System.currentTimeMillis()
         ): AlbumEntity {
-            val candidateGenres = metadata.genreCandidates
-                .filter { it.tier != GenreCandidateTier.MICRO }
-                .map { it.name.trim() }
-                .filter { it.isNotBlank() }
-                .distinct()
+            val candidateGenres = NormalizeAlbumGenreCandidatesUseCase()(
+                candidates = metadata.genreCandidates.filter { it.tier != GenreCandidateTier.MICRO }
+            ).representativeGenres
             val primaryGenre = candidateGenres.firstOrNull()
                 ?: metadata.primaryGenre.displayNameOrNull()
             val secondaryGenre = candidateGenres.drop(1).firstOrNull()

@@ -78,8 +78,11 @@ import com.example.vinfo.ui.component.GenreChip
 import com.example.vinfo.ui.component.VinfoCard
 import com.example.vinfo.ui.theme.VinfoTheme
 import com.example.vinfo.domain.model.ConfirmedGenreDiscovery
+import com.example.vinfo.domain.model.GenreFlowNodeState
 import com.example.vinfo.domain.model.GenreRelationCandidate
 import com.example.vinfo.domain.model.RelationStrength
+import com.example.vinfo.domain.model.toGenreKey
+import com.example.vinfo.domain.usecase.GetVisibleGenreFlowUseCase
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -200,81 +203,61 @@ internal data class GenreMapUiState(
         fun fromArchive(archiveItems: List<DummyArchive>): GenreMapUiState {
             if (archiveItems.isEmpty()) return empty()
 
-            val genreCounts = archiveItems
-                .flatMap { it.genres }
-                .mapNotNull { it.toMapGenreName() }
-                .groupingBy { it }
-                .eachCount()
-            if (genreCounts.isEmpty()) return empty()
+            val visibleFlow = GetVisibleGenreFlowUseCase()(
+                albumGenres = archiveItems.map { it.genres }
+            )
+            if (visibleFlow.nodes.isEmpty()) return empty()
 
-            val activeGenreNames = genreCounts.keys
-            val candidates = linkedSetOf<String>()
-            flowLinks.forEach { link ->
-                val sourceActive = link.source in activeGenreNames
-                val targetActive = link.target in activeGenreNames
-                if (sourceActive && !targetActive) candidates += link.target
-                if (targetActive && !sourceActive) candidates += link.source
-            }
-
-            val visibleGenreNames = activeGenreNames + candidates
-            val nodes = flowNodes.filter { it.name in visibleGenreNames }.map { node ->
-                val saveCount = genreCounts[node.name] ?: 0
+            val nodes = visibleFlow.nodes.map { node ->
                 val type = when {
-                    saveCount > 0 -> GenreMapNodeType.Activated
+                    node.state == GenreFlowNodeState.ACTIVATED -> GenreMapNodeType.Activated
                     else -> GenreMapNodeType.Adjacent
                 }
                 GenreMapNodeUi(
-                    id = node.id,
-                    genreKey = node.name.uppercase().replace(" ", "_").replace("-", "_"),
-                    label = node.name,
+                    id = node.key,
+                    genreKey = node.displayName.uppercase().replace(" ", "_").replace("-", "_"),
+                    label = node.displayName,
                     note = when (type) {
-                        GenreMapNodeType.Activated -> "저장 앨범 ${saveCount}개"
+                        GenreMapNodeType.Activated -> "저장 앨범 ${node.saveCount}개"
                         GenreMapNodeType.Adjacent -> "연결 후보"
                         GenreMapNodeType.Locked -> ""
                     },
-                    saveCount = saveCount,
-                    lastActivatedText = if (saveCount > 0) "자동 반영" else "대기 중",
+                    saveCount = node.saveCount,
+                    lastActivatedText = if (node.saveCount > 0) "자동 반영" else "대기 중",
                     type = type,
-                    position = node.position,
-                    accessibilityLabel = "${node.name}, ${type.koreanLabel()}, 저장 앨범 ${saveCount}개"
+                    position = Offset(node.x, node.y),
+                    accessibilityLabel = "${node.displayName}, ${type.koreanLabel()}, 저장 앨범 ${node.saveCount}개"
                 )
             }
 
-            val activeNodeNames = nodes
-                .filter { it.type == GenreMapNodeType.Activated }
-                .map { it.label }
-                .toSet()
-            val visibleNodeNames = nodes.map { it.label }.toSet()
-
-            val edges = flowLinks.filter { link ->
-                link.source in visibleNodeNames &&
-                    link.target in visibleNodeNames &&
-                    (link.source in activeNodeNames || link.target in activeNodeNames)
-            }.map { link ->
-                val sourceActive = link.source in activeNodeNames
-                val targetActive = link.target in activeNodeNames
+            val edges = visibleFlow.edges.map { edge ->
                 val label = when {
-                    sourceActive && targetActive -> "최근 열린 흐름"
+                    edge.active -> "최근 열린 흐름"
                     else -> "연결 후보"
                 }
                 GenreMapEdgeUi(
-                    fromId = link.source.toNodeId(),
-                    toId = link.target.toNodeId(),
+                    fromId = edge.sourceKey,
+                    toId = edge.targetKey,
                     label = label,
-                    evidence = if (sourceActive && targetActive) {
+                    evidence = if (edge.active) {
                         "보관함에 두 장르의 앨범이 함께 저장되어 연결이 활성화되었습니다."
                     } else {
-                        "저장된 앨범 장르와 직접 맞닿은 주변 흐름입니다."
+                        edge.evidence
                     },
                     unlocked = true,
-                    relationScore = 1f
+                    relationScore = edge.score
                 )
             }
 
             val activeCount = nodes.count { it.type == GenreMapNodeType.Activated }
             val candidateCount = nodes.count { it.type == GenreMapNodeType.Adjacent }
-            val recentCount = edges.count { it.label == "최근 열린 흐름" }
-            val topFlow = activeGenreNames.take(3).joinToString(" -> ").ifBlank {
+            val recentCount = visibleFlow.edges.count { it.active }
+            val topFlow = nodes
+                .filter { it.type == GenreMapNodeType.Activated }
+                .map { it.label }
+                .take(3)
+                .joinToString(" -> ")
+                .ifBlank {
                 "저장 앨범 기반으로 자동 구성 중"
             }
 
@@ -292,61 +275,10 @@ internal data class GenreMapUiState(
                 recentAlbums = archiveItems.take(5)
             )
         }
-
-        private val flowNodes = listOf(
-            FlowNode("Blues", Offset(0.10f, 0.62f)),
-            FlowNode("Jazz", Offset(0.25f, 0.25f)),
-            FlowNode("Soul", Offset(0.25f, 0.62f)),
-            FlowNode("Funk", Offset(0.40f, 0.38f)),
-            FlowNode("R&B", Offset(0.40f, 0.68f)),
-            FlowNode("Hip-Hop", Offset(0.54f, 0.48f)),
-            FlowNode("Boom Bap", Offset(0.69f, 0.22f)),
-            FlowNode("Trap", Offset(0.69f, 0.72f)),
-            FlowNode("Jazz Rap", Offset(0.72f, 0.48f)),
-            FlowNode("Progressive Rap", Offset(0.80f, 0.58f)),
-            FlowNode("Neo Soul", Offset(0.86f, 0.34f)),
-            FlowNode("Pop Rap", Offset(0.86f, 0.76f)),
-            FlowNode("Art Pop", Offset(0.92f, 0.55f)),
-            FlowNode("Electronic", Offset(0.58f, 0.86f)),
-            FlowNode("Synth-pop", Offset(0.74f, 0.82f)),
-            FlowNode("House", Offset(0.74f, 0.92f)),
-            FlowNode("Ambient", Offset(0.90f, 0.92f))
-        )
-
-        private val flowLinks = listOf(
-            FlowLink("Blues", "Jazz"),
-            FlowLink("Blues", "Soul"),
-            FlowLink("Jazz", "Funk"),
-            FlowLink("Soul", "R&B"),
-            FlowLink("Funk", "Hip-Hop"),
-            FlowLink("R&B", "Hip-Hop"),
-            FlowLink("Jazz", "Jazz Rap"),
-            FlowLink("Hip-Hop", "Boom Bap"),
-            FlowLink("Hip-Hop", "Trap"),
-            FlowLink("Hip-Hop", "Jazz Rap"),
-            FlowLink("Hip-Hop", "Progressive Rap"),
-            FlowLink("Jazz Rap", "Neo Soul"),
-            FlowLink("Progressive Rap", "Art Pop"),
-            FlowLink("Trap", "Pop Rap"),
-            FlowLink("Neo Soul", "Art Pop"),
-            FlowLink("Pop Rap", "Art Pop"),
-            FlowLink("Funk", "Electronic"),
-            FlowLink("Synth-pop", "Electronic"),
-            FlowLink("Synth-pop", "Art Pop"),
-            FlowLink("Electronic", "House"),
-            FlowLink("Electronic", "Ambient"),
-            FlowLink("Art Pop", "Electronic")
-        )
-
-        private data class FlowNode(val name: String, val position: Offset) {
-            val id: String = name.toNodeId()
-        }
-
-        private data class FlowLink(val source: String, val target: String)
     }
 }
 
-private fun String.toNodeId(): String = lowercase().replace(" ", "").replace("-", "")
+private fun String.toNodeId(): String = toGenreKey()
 
 internal fun GenreMapUiState.withDiscoveries(
     discoveries: List<ConfirmedGenreDiscovery>
@@ -358,7 +290,7 @@ internal fun GenreMapUiState.withDiscoveries(
 
     discoveries.forEach { discovery ->
         val sourceNode = updatedNodes.firstOrNull {
-            it.label.normalizedGenreKey() == discovery.sourceGenre.normalizedGenreKey()
+            it.label.toGenreKey() == discovery.sourceGenre.toGenreKey()
         } ?: return@forEach
 
         discovery.candidates.forEachIndexed { index, candidate ->
@@ -459,37 +391,6 @@ private fun Offset.distanceTo(other: Offset): Float {
     val dx = x - other.x
     val dy = y - other.y
     return sqrt(dx * dx + dy * dy)
-}
-
-private fun String.normalizedGenreKey(): String {
-    return trim()
-        .lowercase()
-        .replace(Regex("""[^a-z0-9]+"""), "")
-}
-
-private fun String.toMapGenreName(): String? {
-    val normalized = trim().lowercase()
-    return when {
-        normalized.isBlank() || normalized == "unknown" -> null
-        "progressive rap" in normalized -> "Progressive Rap"
-        "synth-pop" in normalized || "synth pop" in normalized || "synthpop" in normalized -> "Synth-pop"
-        "jazz rap" in normalized -> "Jazz Rap"
-        "blues" in normalized -> "Blues"
-        "neo soul" in normalized -> "Neo Soul"
-        "boom bap" in normalized -> "Boom Bap"
-        "pop rap" in normalized -> "Pop Rap"
-        "art pop" in normalized -> "Art Pop"
-        "trap" in normalized -> "Trap"
-        "hip" in normalized || "rap" in normalized -> "Hip-Hop"
-        "r&b" in normalized || "rnb" in normalized -> "R&B"
-        "soul" in normalized -> "Soul"
-        "funk" in normalized -> "Funk"
-        "jazz" in normalized -> "Jazz"
-        "house" in normalized -> "House"
-        "ambient" in normalized -> "Ambient"
-        "electronic" in normalized || "electronica" in normalized -> "Electronic"
-        else -> null
-    }
 }
 
 private fun GenreMapNodeType.koreanLabel(): String = when (this) {
@@ -909,10 +810,10 @@ private fun NearbyGenreDiscoveryDialog(
     onConfirm: (List<GenreRelationCandidate>) -> Unit,
 ) {
     var selectedCandidateKeys by remember(state.selectedGenre, state.candidates) {
-        mutableStateOf(state.candidates.map { it.genreName.normalizedGenreKey() }.toSet())
+        mutableStateOf(state.candidates.map { it.genreName.toGenreKey() }.toSet())
     }
     val selectedCandidates = remember(state.candidates, selectedCandidateKeys) {
-        state.candidates.filter { it.genreName.normalizedGenreKey() in selectedCandidateKeys }
+        state.candidates.filter { it.genreName.toGenreKey() in selectedCandidateKeys }
     }
 
     AlertDialog(
@@ -962,7 +863,7 @@ private fun NearbyGenreDiscoveryDialog(
                         )
                     }
                     state.candidates.forEach { candidate ->
-                        val candidateKey = candidate.genreName.normalizedGenreKey()
+                        val candidateKey = candidate.genreName.toGenreKey()
                         val isSelected = candidateKey in selectedCandidateKeys
                         Row(
                             modifier = Modifier

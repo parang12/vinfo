@@ -64,10 +64,10 @@
 
 - 홈의 `맵 열기` 액션에서 전체 화면 장르 지도로 이동한다.
 - 캔버스는 드래그 이동, 핀치 줌, 확대/축소, 중앙 복귀를 지원한다.
-- 현재 구현은 아카이브의 정규화 장르와 인라인 정적 연결 데이터를 사용하며, 활성 노드와 직접 연결된 1-hop 주변 후보만 렌더링한다.
+- 현재 구현은 아카이브의 정규화 장르, `GenreDictionary`, `CuratedGenreRelations`, `GetVisibleGenreFlowUseCase`를 사용하며, 활성 노드와 직접 연결된 1-hop 주변 후보만 렌더링한다.
 - 알 수 없는 장르, 사전 미등록 장르, 직접 연결되지 않은 노드는 화면 모델에서 제외한다.
-- 다음 단계에서는 인라인 연결 데이터를 버전 관리되는 `GenreDictionary` 리소스로 분리하고, [GENRE_TAXONOMY.md](GENRE_TAXONOMY.md)의 Root Genre 정책을 적용한다.
-- 신생 장르는 Root Genre 검증을 통과한 경우에만 `EMERGING` 후보로 보존하며, 기본 지도/통계에는 검증된 장르만 반영한다.
+- `GenreDictionary`는 Kotlin 리소스로 버전 관리하며, [GENRE_TAXONOMY.md](GENRE_TAXONOMY.md)의 Root Genre 정책에 따라 alias 매칭과 사전 미등록 후보 제외를 수행한다.
+- 신생 장르는 Root Genre 검증을 통과한 경우에만 `EMERGING`/`NEEDS_REVIEW` 상태로 모델링하며, 기본 지도/통계에는 검증된 장르와 직접 연결 후보만 반영한다.
 - Gemini는 앨범 장르 후보를 제안하지만, 장르 간 영향선은 생성하지 않는다.
 
 #### Settings
