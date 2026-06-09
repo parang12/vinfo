@@ -3,6 +3,7 @@ package com.example.vinfo.ui.stats
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.vinfo.data.local.AppDatabase
 import com.example.vinfo.data.remote.gemini.GeminiGenreRelationDiscoveryRepository
 import com.example.vinfo.data.settings.ApiKeyStore
 import com.example.vinfo.domain.model.AppResult
@@ -100,7 +101,9 @@ fun GenreMapDiscoveryState.confirmCandidates(
 
 class GenreMapViewModel @JvmOverloads constructor(
     application: Application,
-    private val repository: GenreRelationDiscoveryRepository = GeminiGenreRelationDiscoveryRepository()
+    private val repository: GenreRelationDiscoveryRepository = GeminiGenreRelationDiscoveryRepository(
+        cacheDao = AppDatabase.getDatabase(application.applicationContext).genreRelationCacheDao()
+    )
 ) : AndroidViewModel(application) {
     private val apiKeyStore = ApiKeyStore(application.applicationContext)
     private val _discoveryState = MutableStateFlow(GenreMapDiscoveryState())

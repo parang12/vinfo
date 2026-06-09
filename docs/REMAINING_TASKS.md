@@ -32,7 +32,7 @@
 - [x] `NormalizeAlbumGenreCandidatesUseCase`, `GetVisibleGenreFlowUseCase` 구현 및 단위 테스트
 - [x] 신생 장르 Root 검증 로직 구현: 사전 미등록/Unknown 후보 제외, 검증 상태(`VERIFIED`/`EMERGING`/`NEEDS_REVIEW`) 모델화
 - [x] Room Archive에 `genre_candidates_json` 저장 컬럼 추가
-- [ ] 주변 장르 검색 결과 Room 캐시 및 검수 큐 설계
+- [x] 주변 장르 검색 결과 Room 캐시 및 검수 큐 설계
 - [x] UI 상태 테스트: 활성 노드 + 직접 연결된 1-hop 후보만 표시, unknown 비노출, pan/zoom reducer 검증
 
 ## 4. 아키텍처 및 품질 개선

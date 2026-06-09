@@ -9,8 +9,10 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.vinfo.data.local.dao.AlbumDao
+import com.example.vinfo.data.local.dao.GenreRelationCacheDao
 import com.example.vinfo.data.local.dao.LyricsCacheDao
 import com.example.vinfo.data.local.entity.AlbumEntity
+import com.example.vinfo.data.local.entity.GenreRelationCacheEntity
 import com.example.vinfo.data.local.entity.LyricsCacheEntity
 
 // List<String>을 DB에 저장하기 위한 컨버터
@@ -26,11 +28,16 @@ class GenreConverters {
     }
 }
 
-@Database(entities = [AlbumEntity::class, LyricsCacheEntity::class], version = 5, exportSchema = false)
+@Database(
+    entities = [AlbumEntity::class, LyricsCacheEntity::class, GenreRelationCacheEntity::class],
+    version = 6,
+    exportSchema = false
+)
 @TypeConverters(GenreConverters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun albumDao(): AlbumDao
     abstract fun lyricsCacheDao(): LyricsCacheDao
+    abstract fun genreRelationCacheDao(): GenreRelationCacheDao
 
     companion object {
         @Volatile
@@ -43,7 +50,13 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "vinfo_database"
                 )
-                    .addMigrations(MIGRATION_1_4, MIGRATION_2_4, MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(
+                        MIGRATION_1_4,
+                        MIGRATION_2_4,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6
+                    )
                     .build()
                 INSTANCE = instance
                 instance
@@ -74,6 +87,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                createGenreRelationCacheTable(db)
+            }
+        }
+
         private fun migrateAlbumSchemaTo4(db: SupportSQLiteDatabase) {
             addColumnIfMissing(db, "album_title", "TEXT NOT NULL DEFAULT ''")
             if (hasColumn(db, "title") && hasColumn(db, "album_title")) {
@@ -96,6 +115,7 @@ abstract class AppDatabase : RoomDatabase() {
             addColumnIfMissing(db, "missing_sources_json", "TEXT NOT NULL DEFAULT '[]'")
             addColumnIfMissing(db, "reliability_notes_json", "TEXT NOT NULL DEFAULT '[]'")
             createLyricsCacheTable(db)
+            createGenreRelationCacheTable(db)
         }
 
         private fun createLyricsCacheTable(db: SupportSQLiteDatabase) {
@@ -107,6 +127,21 @@ abstract class AppDatabase : RoomDatabase() {
                     title TEXT NOT NULL,
                     lyrics TEXT NOT NULL,
                     updatedAtMillis INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+        }
+
+        private fun createGenreRelationCacheTable(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS genre_relation_cache (
+                    source_genre_key TEXT NOT NULL PRIMARY KEY,
+                    source_genre TEXT NOT NULL,
+                    candidates_json TEXT NOT NULL,
+                    review_status TEXT NOT NULL DEFAULT 'PENDING',
+                    updated_at_millis INTEGER NOT NULL,
+                    reviewed_at_millis INTEGER
                 )
                 """.trimIndent()
             )

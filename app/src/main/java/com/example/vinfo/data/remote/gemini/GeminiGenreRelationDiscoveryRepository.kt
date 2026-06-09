@@ -1,8 +1,11 @@
 package com.example.vinfo.data.remote.gemini
 
+import com.example.vinfo.data.local.dao.GenreRelationCacheDao
+import com.example.vinfo.data.local.entity.GenreRelationCacheEntity
 import com.example.vinfo.domain.model.AppResult
 import com.example.vinfo.domain.model.CuratedGenreRelations
 import com.example.vinfo.domain.model.GenreRelationCandidate
+import com.example.vinfo.domain.model.toGenreKey
 import com.example.vinfo.domain.repository.GenreRelationDiscoveryRepository
 import com.example.vinfo.domain.usecase.DiscoverNearbyGenresUseCase
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +14,7 @@ import kotlinx.coroutines.withContext
 class GeminiGenreRelationDiscoveryRepository(
     private val parser: GeminiGenreRelationJsonParser = GeminiGenreRelationJsonParser(),
     private val filterCandidates: DiscoverNearbyGenresUseCase = DiscoverNearbyGenresUseCase(),
+    private val cacheDao: GenreRelationCacheDao? = null,
     private val serviceFactory: (String) -> GeminiApiService = GeminiApiClientFactory::create
 ) : GenreRelationDiscoveryRepository {
     override suspend fun discoverNearbyGenres(
@@ -20,6 +24,14 @@ class GeminiGenreRelationDiscoveryRepository(
         if (selectedGenre.isBlank()) {
             return@withContext AppResult.Error("선택한 장르를 확인할 수 없습니다.")
         }
+        cacheDao
+            ?.getBySourceGenreKey(selectedGenre.toGenreKey())
+            ?.toCandidates()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { cachedCandidates ->
+                return@withContext AppResult.Success(cachedCandidates)
+            }
+
         val curatedFallback = CuratedGenreRelations.nearbyGenres(selectedGenre)
         if (apiKey.isBlank()) {
             return@withContext if (curatedFallback.isNotEmpty()) {
@@ -50,7 +62,16 @@ class GeminiGenreRelationDiscoveryRepository(
                     sourceGenre = selectedGenre,
                     candidates = parsed.data.nearbyGenres
                 )
-                AppResult.Success(filtered.ifEmpty { curatedFallback })
+                val candidates = filtered.ifEmpty { curatedFallback }
+                if (candidates.isNotEmpty()) {
+                    cacheDao?.insert(
+                        GenreRelationCacheEntity.fromCandidates(
+                            sourceGenre = selectedGenre,
+                            candidates = candidates
+                        )
+                    )
+                }
+                AppResult.Success(candidates)
             }
             is AppResult.Error -> {
                 if (curatedFallback.isNotEmpty()) {

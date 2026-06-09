@@ -565,6 +565,15 @@ sealed interface AppResult<out T> {
 - Compose UI Test: `DetailScreen`, `ArchiveListScreen` 렌더링 및 상태 전이 검증
 - Compose UI Test: `GenreMapScreen` unknown 비노출, 1-hop 후보 노출, pan/zoom 상태 검증
 
+### 7.4 Genre Relation Cache
+
+- `genre_relation_cache` 테이블은 `source_genre_key`를 Primary Key로 사용한다.
+- `source_genre_key`는 `GenreDictionary.toGenreKey()`와 같은 정규화 규칙을 사용한다.
+- `candidates_json`에는 `genre`, `score`, `relation_type`, `evidence`를 저장한다.
+- `review_status`는 기본값 `PENDING`이며, 검수 완료 시 `CONFIRMED`와 `reviewed_at_millis`를 기록한다.
+- `GeminiGenreRelationDiscoveryRepository`는 캐시가 있으면 Gemini를 호출하지 않고 캐시 후보를 반환한다.
+- 캐시가 없고 Gemini/curated fallback 결과가 있으면 후보를 Room에 저장하여 다음 검색과 검수 큐에서 재사용한다.
+
 ---
 
 ## 8. Permissions & Security
