@@ -37,8 +37,9 @@
 - [x] 새 주변 장르 확정 시 반영된 관계 수를 알려주는 확장 피드백 배지 애니메이션
 
 ## 4. 아키텍처 및 품질 개선
-- [ ] **Clean Architecture 적용**: Domain(UseCase) 및 Data(Repository) 계층 분리
-- [ ] **Unit Test 작성**: 주요 비즈니스 로직(통계 계산, 파서 등) 검증
+- [x] **Clean Architecture 적용**: Domain(UseCase/Repository interface), Data(Repository implementation/Remote/Local), UI(ViewModel/Compose) 계층 분리
+- [x] **Unit Test 작성**: Gemini 파서/요청 빌더, lyrics.ovh, 캐시 Repository, 장르 정규화/지도/통계, 설정 및 Catch Now 중복 요청 방지 검증
+- [ ] **지속 테스트 보강**: 새 기능 추가 시 회귀 테스트와 UI 상태 테스트를 함께 추가
 
 ---
 

@@ -96,6 +96,8 @@
 - 설정, 상세, 통계는 모두 스크롤 기반 카드 레이아웃으로 정리했다.
 - `GeminiRequestBuilder`는 `responseMimeType = "application/json"`을 포함하고, 아티스트/곡명으로 앨범을 식별한 뒤 앨범 기준 JSON만 반환하도록 요청한다.
 - `GeminiJsonParser`는 Gemini 래퍼 응답 또는 원시 JSON에서 첫 JSON 객체를 추출하며, `null` 평점/문자열을 그대로 nullable 필드로 보존한다.
+- 도메인 계층은 `TrackMetadataRepository`, `RawLyricsRepository`, `GenreRelationDiscoveryRepository` 인터페이스와 UseCase를 제공하고, 데이터 계층은 Gemini/lyrics.ovh/Room 캐시 구현을 담당한다.
+- 주요 비즈니스 로직은 유닛 테스트로 고정한다. 현재 테스트 범위에는 Gemini JSON 파서/요청 빌더, 장르 관계 검색 파서, lyrics.ovh 원문 조회, 캐시 Repository, 장르 정규화 및 지도 reducer, 설정/테마/Catch Now 요청 게이트가 포함된다.
 
 ## 검증
 
