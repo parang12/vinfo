@@ -1,7 +1,12 @@
 package com.example.vinfo.ui.stats
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
@@ -44,6 +49,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,6 +89,7 @@ import com.example.vinfo.domain.model.GenreRelationCandidate
 import com.example.vinfo.domain.model.RelationStrength
 import com.example.vinfo.domain.model.toGenreKey
 import com.example.vinfo.domain.usecase.GetVisibleGenreFlowUseCase
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -436,6 +443,20 @@ internal fun GenreMapScreen(
     var scale by rememberSaveable { mutableStateOf(0.92f) }
     var panX by rememberSaveable { mutableStateOf(0f) }
     var panY by rememberSaveable { mutableStateOf(12f) }
+    var previousDiscoveryState by remember { mutableStateOf(discoveryState) }
+    var expansionFeedback by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(discoveryState.confirmedDiscoveries) {
+        val message = expansionFeedbackMessage(previousDiscoveryState, discoveryState)
+        previousDiscoveryState = discoveryState
+        if (message != null) {
+            expansionFeedback = message
+            delay(2400)
+            if (expansionFeedback == message) {
+                expansionFeedback = null
+            }
+        }
+    }
 
     Box(
         modifier = modifier
@@ -479,6 +500,14 @@ internal fun GenreMapScreen(
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .padding(horizontal = 18.dp, vertical = 12.dp)
+        )
+
+        MapExpansionFeedbackBanner(
+            message = expansionFeedback,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .padding(top = 118.dp, start = 24.dp, end = 24.dp)
         )
 
         MapFloatingControls(
@@ -555,6 +584,48 @@ internal fun GenreMapScreen(
                 isReviewQueueVisible = false
             }
         )
+    }
+}
+
+@Composable
+private fun MapExpansionFeedbackBanner(
+    message: String?,
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = message != null,
+        modifier = modifier,
+        enter = slideInVertically { -it / 2 } + fadeIn(),
+        exit = slideOutVertically { -it / 2 } + fadeOut()
+    ) {
+        Surface(
+            shape = RoundedCornerShape(999.dp),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.96f),
+            shadowElevation = 6.dp,
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.28f)
+            )
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = message.orEmpty(),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
     }
 }
 

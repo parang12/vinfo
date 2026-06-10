@@ -89,4 +89,47 @@ class GenreMapDiscoveryReducerTest {
         assertEquals("Jazz", state.confirmedDiscoveries.single().sourceGenre)
         assertEquals("Blues", state.confirmedDiscoveries.single().candidates.single().genreName)
     }
+
+    @Test
+    fun `expansion feedback reports newly confirmed relation count`() {
+        val previous = GenreMapDiscoveryState()
+        val next = GenreMapDiscoveryState(
+            confirmedDiscoveries = listOf(
+                com.example.vinfo.domain.model.ConfirmedGenreDiscovery(
+                    sourceGenre = "Synth-pop",
+                    candidates = listOf(
+                        GenreRelationCandidate("Dream Pop", 0.84f, "adjacent", "근거"),
+                        GenreRelationCandidate("Art Pop", 0.72f, "adjacent", "근거")
+                    )
+                )
+            )
+        )
+
+        assertEquals(
+            "장르 관계 2개가 지도에 반영되었습니다.",
+            expansionFeedbackMessage(previous, next)
+        )
+    }
+
+    @Test
+    fun `expansion feedback is empty when confirmed relation count does not increase`() {
+        val previous = GenreMapDiscoveryState(
+            confirmedDiscoveries = listOf(
+                com.example.vinfo.domain.model.ConfirmedGenreDiscovery(
+                    sourceGenre = "Synth-pop",
+                    candidates = listOf(GenreRelationCandidate("Dream Pop", 0.84f, "adjacent", "근거"))
+                )
+            )
+        )
+        val next = previous.copy(
+            pendingReviews = listOf(
+                GenreRelationReviewItem(
+                    sourceGenre = "Jazz",
+                    candidates = listOf(GenreRelationCandidate("Blues", 0.82f, "root", "근거"))
+                )
+            )
+        )
+
+        assertEquals(null, expansionFeedbackMessage(previous, next))
+    }
 }

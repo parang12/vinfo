@@ -70,6 +70,7 @@
 - `GenreDictionary`는 Kotlin 리소스로 버전 관리하며, [GENRE_TAXONOMY.md](GENRE_TAXONOMY.md)의 Root Genre 정책에 따라 alias 매칭과 사전 미등록 후보 제외를 수행한다.
 - 신생 장르는 Root Genre 검증을 통과한 경우에만 `EMERGING`/`NEEDS_REVIEW` 상태로 모델링하며, 기본 지도/통계에는 검증된 장르와 직접 연결 후보만 반영한다.
 - Gemini는 앨범 장르 후보를 제안하지만, 장르 간 영향선은 생성하지 않는다.
+- 주변 장르 후보를 확정하거나 검수 큐 항목을 반영하면, 새로 추가된 관계 수를 알려주는 배지 토스트가 지도 위에 짧게 표시된다.
 
 #### Settings
 

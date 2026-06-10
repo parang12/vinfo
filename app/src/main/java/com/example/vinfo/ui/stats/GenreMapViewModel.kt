@@ -36,6 +36,22 @@ data class GenreMapDiscoveryState(
     val pendingReviewCount: Int = pendingReviews.size
 }
 
+fun GenreMapDiscoveryState.confirmedRelationCount(): Int {
+    return confirmedDiscoveries.sumOf { discovery -> discovery.candidates.size }
+}
+
+fun expansionFeedbackMessage(
+    previous: GenreMapDiscoveryState,
+    next: GenreMapDiscoveryState
+): String? {
+    val addedCount = next.confirmedRelationCount() - previous.confirmedRelationCount()
+    return if (addedCount > 0) {
+        "장르 관계 ${addedCount}개가 지도에 반영되었습니다."
+    } else {
+        null
+    }
+}
+
 fun GenreMapDiscoveryState.startSearch(genre: String): GenreMapDiscoveryState {
     return copy(
         selectedGenre = genre,

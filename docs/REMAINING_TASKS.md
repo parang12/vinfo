@@ -18,7 +18,7 @@
 
 ## 3. UI/UX 고도화 (Low Priority)
 - [x] **로딩 상태 UI(Skeleton/Shimmer) 적용**: 데이터 로딩 중 사용자 경험 개선
-- [ ] **애니메이션 효과**: 화면 전환 및 리스트 인터랙션 애니메이션 추가
+- [x] **애니메이션 효과**: 지도 확장 시 새 관계 반영 배지 토스트, 하단 시트, 보관함 리스트 인터랙션 애니메이션 적용
 
 ### 3.1 Taste Exploration / Genre Map
 - [x] `GenreMapScreen` 구현 (Compose): 전체 화면 pan/zoom, 노드/엣지 렌더링, 툴팁, 접근성
@@ -34,6 +34,7 @@
 - [x] Room Archive에 `genre_candidates_json` 저장 컬럼 추가
 - [x] 주변 장르 검색 결과 Room 캐시 및 검수 큐 화면 확정 플로우
 - [x] UI 상태 테스트: 활성 노드 + 직접 연결된 1-hop 후보만 표시, unknown 비노출, pan/zoom reducer 검증
+- [x] 새 주변 장르 확정 시 반영된 관계 수를 알려주는 확장 피드백 배지 애니메이션
 
 ## 4. 아키텍처 및 품질 개선
 - [ ] **Clean Architecture 적용**: Domain(UseCase) 및 Data(Repository) 계층 분리
