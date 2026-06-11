@@ -1150,7 +1150,7 @@ private fun FullFlowMapCanvas(
         val widthPx = with(density) { maxWidth.toPx() }
         val heightPx = with(density) { maxHeight.toPx() }
         val center = Offset(widthPx / 2f, heightPx / 2f)
-        val nodeDiameter = 48.dp
+        val nodeDiameter = 38.dp
         val nodeDiameterPx = with(density) { nodeDiameter.toPx() }
         val mapWidth = 980f
         val mapHeight = 640f
@@ -1217,34 +1217,6 @@ private fun FullFlowMapCanvas(
             }
         }
 
-        MapLaneLabel(
-            text = "원천 장르",
-            modifier = Modifier.offset {
-                IntOffset(
-                    x = (center.x + pan.x - 390f * scale).roundToInt(),
-                    y = (center.y + pan.y - 270f * scale).roundToInt()
-                )
-            }
-        )
-        MapLaneLabel(
-            text = "중심 흐름",
-            modifier = Modifier.offset {
-                IntOffset(
-                    x = (center.x + pan.x - 65f * scale).roundToInt(),
-                    y = (center.y + pan.y - 270f * scale).roundToInt()
-                )
-            }
-        )
-        MapLaneLabel(
-            text = "파생 흐름",
-            modifier = Modifier.offset {
-                IntOffset(
-                    x = (center.x + pan.x + 255f * scale).roundToInt(),
-                    y = (center.y + pan.y - 270f * scale).roundToInt()
-                )
-            }
-        )
-
         nodes.forEach { node ->
             val position = screenPosition(node)
             FlowNodeBubble(
@@ -1260,23 +1232,6 @@ private fun FullFlowMapCanvas(
             )
         }
     }
-}
-
-@Composable
-private fun MapLaneLabel(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = text,
-        modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.ExtraBold,
-        color = Color(0xFF94A3B8)
-    )
 }
 
 @Composable
@@ -1299,7 +1254,7 @@ private fun FlowNodeBubble(
     ) {
         Surface(
             modifier = Modifier
-                .size(48.dp)
+                .size(38.dp)
                 .clickable(onClick = onClick)
                 .semantics {
                     role = Role.Button
@@ -1320,7 +1275,7 @@ private fun FlowNodeBubble(
             Box(contentAlignment = Alignment.Center) {
                 Text(
                     text = if (node.type == GenreMapNodeType.Locked) "?" else node.label.initials(),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = if (node.type == GenreMapNodeType.Activated) {
                         Color(0xFF0058BC)
@@ -1330,13 +1285,13 @@ private fun FlowNodeBubble(
                 )
             }
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(5.dp))
         Text(
             text = node.label,
             modifier = Modifier
                 .clip(RoundedCornerShape(999.dp))
                 .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.82f))
-                .padding(horizontal = 8.dp, vertical = 3.dp),
+                .padding(horizontal = 7.dp, vertical = 2.dp),
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
             color = if (node.type == GenreMapNodeType.Activated) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
@@ -1363,7 +1318,7 @@ private fun MapCanvas(
     onEdgeSelected: (GenreMapEdgeUi) -> Unit,
 ) {
     val density = LocalDensity.current
-    val nodeDiameter = 74.dp
+    val nodeDiameter = 59.dp
     val edgeChipWidth = 102.dp
     val edgeChipHeight = 30.dp
 
